@@ -1,6 +1,7 @@
 #include <cassert>
 #include <iostream>
 #include <map>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -139,6 +140,86 @@ namespace bencode {
 
   inline any decode(const std::string &s) {
     return decode(s.begin(), s.end());
+  }
+
+
+  // TODO: make these use unformatted output?
+  inline std::ostream & encode(std::ostream &os, integer value) {
+    return os << "i" << value << "e";
+  }
+
+  inline std::ostream & encode(std::ostream &os, const string &value) {
+    return os << value.size() << ":" << value;
+  }
+
+  template<typename T>
+  std::ostream & encode(std::ostream &os, const std::vector<T> &value);
+
+  template<typename T>
+  std::ostream & encode(std::ostream &os,
+                        const std::map<std::string, T> &value);
+
+  class encode_list {
+  public:
+    encode_list(std::ostream &os) : os(os) {
+      os.put('l');
+    }
+
+    template<typename T>
+    encode_list & add(T &&value) {
+      encode(os, std::forward<T>(value));
+      return *this;
+    }
+
+    std::ostream & end() {
+      return os.put('e');
+    }
+  private:
+    std::ostream &os;
+  };
+
+  class encode_dict {
+  public:
+    encode_dict(std::ostream &os) : os(os) {
+      os.put('d');
+    }
+
+    template<typename T>
+    encode_dict & add(const string &key, T &&value) {
+      encode(os, key);
+      encode(os, std::forward<T>(value));
+      return *this;
+    }
+
+    std::ostream & end() {
+      return os.put('e');
+    }
+  private:
+    std::ostream &os;
+  };
+
+  template<typename T>
+  std::ostream & encode(std::ostream &os, const std::vector<T> &value) {
+    encode_list e(os);
+    for(auto &&i : value)
+      e.add(i);
+    return e.end();
+  }
+
+  template<typename T>
+  std::ostream & encode(std::ostream &os,
+                        const std::map<std::string, T> &value) {
+    encode_dict e(os);
+    for(auto &&i : value)
+      e.add(i.first, i.second);
+    return e.end();
+  }
+
+  template<typename T>
+  std::string encode(T &&t) {
+    std::stringstream ss;
+    encode(ss, t);
+    return ss.str();
   }
 
 }
