@@ -152,7 +152,7 @@ namespace bencode {
     return decode(b, end);
   }
 
-  inline BENCODE_ANY_NS::any decode(const std::string &s) {
+  inline BENCODE_ANY_NS::any decode(const BENCODE_STRING_VIEW &s) {
     return decode(s.begin(), s.end());
   }
 
