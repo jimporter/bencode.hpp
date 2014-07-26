@@ -153,6 +153,37 @@ namespace bencode {
     return decode(s.begin(), s.end());
   }
 
+  class list_encoder {
+  public:
+    inline list_encoder(std::ostream &os) : os(os) {
+      os.put('l');
+    }
+
+    template<typename T>
+    inline list_encoder & add(T &&value);
+
+    inline void end() {
+      os.put('e');
+    }
+  private:
+    std::ostream &os;
+  };
+
+  class dict_encoder {
+  public:
+    inline dict_encoder(std::ostream &os) : os(os) {
+      os.put('d');
+    }
+
+    template<typename T>
+    inline dict_encoder & add(const BENCODE_STRING_VIEW &key, T &&value);
+
+    inline void end() {
+      os.put('e');
+    }
+  private:
+    std::ostream &os;
+  };
 
   // TODO: make these use unformatted output?
   inline void encode(std::ostream &os, integer value) {
@@ -189,44 +220,21 @@ namespace bencode {
       throw std::invalid_argument("unexpected type");
   }
 
-  class list_encoder {
-  public:
-    list_encoder(std::ostream &os) : os(os) {
-      os.put('l');
-    }
+  template<typename T>
+  void encode(std::ostream &os, const std::vector<T> &value) {
+    list_encoder e(os);
+    for(auto &&i : value)
+      e.add(i);
+    e.end();
+  }
 
-    template<typename T>
-    list_encoder & add(T &&value) {
-      encode(os, std::forward<T>(value));
-      return *this;
-    }
-
-    std::ostream & end() {
-      return os.put('e');
-    }
-  private:
-    std::ostream &os;
-  };
-
-  class dict_encoder {
-  public:
-    dict_encoder(std::ostream &os) : os(os) {
-      os.put('d');
-    }
-
-    template<typename T>
-    dict_encoder & add(const BENCODE_STRING_VIEW &key, T &&value) {
-      encode(os, key);
-      encode(os, std::forward<T>(value));
-      return *this;
-    }
-
-    std::ostream & end() {
-      return os.put('e');
-    }
-  private:
-    std::ostream &os;
-  };
+  template<typename T>
+  void encode(std::ostream &os, const std::map<std::string, T> &value) {
+    dict_encoder e(os);
+    for(auto &&i : value)
+      e.add(i.first, i.second);
+    e.end();
+  }
 
   namespace detail {
     inline void encode_list_items(list_encoder &) {}
@@ -262,19 +270,17 @@ namespace bencode {
   }
 
   template<typename T>
-  void encode(std::ostream &os, const std::vector<T> &value) {
-    list_encoder e(os);
-    for(auto &&i : value)
-      e.add(i);
-    e.end();
+  inline list_encoder & list_encoder::add(T &&value) {
+    encode(os, std::forward<T>(value));
+    return *this;
   }
 
   template<typename T>
-  void encode(std::ostream &os, const std::map<std::string, T> &value) {
-    dict_encoder e(os);
-    for(auto &&i : value)
-      e.add(i.first, i.second);
-    e.end();
+  inline dict_encoder &
+  dict_encoder::add(const BENCODE_STRING_VIEW &key, T &&value) {
+    encode(os, key);
+    encode(os, std::forward<T>(value));
+    return *this;
   }
 
   template<typename T>
