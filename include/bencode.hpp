@@ -45,27 +45,6 @@ namespace bencode {
   namespace detail {
 
     template<typename T>
-    string decode_str(T &begin, T end) {
-      size_t len = 0;
-      for(; begin != end && std::isdigit(*begin); ++begin)
-        len = len * 10 + *begin - '0';
-
-      if(begin == end)
-        throw std::invalid_argument("unexpected end of string");
-      if(*begin != ':')
-        throw std::invalid_argument("expected ':'");
-      ++begin;
-      if(std::distance(begin, end) < static_cast<ssize_t>(len))
-        throw std::invalid_argument("length exceeds total");
-
-      std::string value(len, 0);
-      T str_start = begin;
-      std::advance(begin, len);
-      std::copy(str_start, begin, value.begin());
-      return value;
-    }
-
-    template<typename T>
     integer decode_int(T &begin, T end) {
       assert(*begin == 'i');
       ++begin;
@@ -87,6 +66,28 @@ namespace bencode {
 
       ++begin;
       return positive ? value : -value;
+    }
+
+    template<typename T>
+    string decode_str(T &begin, T end) {
+      assert(std::isdigit(*begin));
+      size_t len = 0;
+      for(; begin != end && std::isdigit(*begin); ++begin)
+        len = len * 10 + *begin - '0';
+
+      if(begin == end)
+        throw std::invalid_argument("unexpected end of string");
+      if(*begin != ':')
+        throw std::invalid_argument("expected ':'");
+      ++begin;
+      if(std::distance(begin, end) < static_cast<ssize_t>(len))
+        throw std::invalid_argument("unexpected end of string");
+
+      std::string value(len, 0);
+      T str_start = begin;
+      std::advance(begin, len);
+      std::copy(str_start, begin, value.begin());
+      return value;
     }
 
     template<typename T>
@@ -113,6 +114,8 @@ namespace bencode {
 
       dict value;
       while(begin != end && *begin != 'e') {
+        if(!std::isdigit(*begin))
+          throw std::invalid_argument("expected string token");
         auto key = decode_str(begin, end);
         value[key] = decode(begin, end);
       }

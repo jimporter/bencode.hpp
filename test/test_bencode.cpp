@@ -32,6 +32,41 @@ suite<> test_decode("test decoding", [](auto &_) {
     expect(any_cast<bencode::integer>(d["spam"]), equal_to(666));
   });
 
+  subsuite<>(_, "error handling", [](auto &_) {
+    _.test("unexpected type", []() {
+      expect([]() { bencode::decode("x"); },
+             thrown<std::invalid_argument>("unexpected type"));
+    });
+
+    _.test("unexpected end of string", []() {
+      auto eos = thrown<std::invalid_argument>("unexpected end of string");
+
+      expect([]() { bencode::decode("i123"); }, eos);
+      expect([]() { bencode::decode("3"); }, eos);
+      expect([]() { bencode::decode("3:as"); }, eos);
+      expect([]() { bencode::decode("l"); }, eos);
+      expect([]() { bencode::decode("li1e"); }, eos);
+      expect([]() { bencode::decode("d"); }, eos);
+      expect([]() { bencode::decode("d1:a"); }, eos);
+      expect([]() { bencode::decode("d1:ai1e"); }, eos);
+    });
+
+    _.test("expected 'e'", []() {
+      expect([]() { bencode::decode("i123i"); },
+             thrown<std::invalid_argument>("expected 'e'"));
+    });
+
+    _.test("expected ':'", []() {
+      expect([]() { bencode::decode("1abc"); },
+             thrown<std::invalid_argument>("expected ':'"));
+    });
+
+    _.test("expected string token", []() {
+      expect([]() { bencode::decode("di123ee"); },
+             thrown<std::invalid_argument>("expected string token"));
+    });
+  });
+
 });
 
 suite<> test_encode("test encoding", [](auto &_) {
