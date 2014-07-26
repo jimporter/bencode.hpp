@@ -5,7 +5,7 @@ using namespace mettle;
 
 suite<> test_decode("test decoding", [](auto &_) {
 
-  using BENCODE_ANY_NAMESPACE::any_cast;
+  using BENCODE_ANY_NS::any_cast;
 
   _.test("integer", []() {
     auto value = bencode::decode("i666e");
@@ -46,23 +46,47 @@ suite<> test_encode("test encoding", [](auto &_) {
   });
 
   _.test("list", []() {
+    std::stringstream ss1;
+    bencode::encode_list(ss1);
+    expect(ss1.str(), equal_to("le"));
+
+    std::stringstream ss2;
+    bencode::encode_list(ss2, 1, "foo", 2);
+    expect(ss2.str(), equal_to("li1e3:fooi2ee"));
+  });
+
+  _.test("dict", []() {
+    std::stringstream ss1;
+    bencode::encode_dict(ss1);
+    expect(ss1.str(), equal_to("de"));
+
+    std::stringstream ss2;
+    bencode::encode_dict(ss2,
+      "first", 1,
+      "second", "foo",
+      "third", 2
+    );
+    expect(ss2.str(), equal_to("d5:firsti1e6:second3:foo5:thirdi2ee"));
+  });
+
+  _.test("list_encoder", []() {
     std::stringstream ss;
-    bencode::encode_list(ss)
+    bencode::list_encoder(ss)
       .add(1).add("foo").add(2)
       .end();
     expect(ss.str(), equal_to("li1e3:fooi2ee"));
   });
 
-  _.test("dict", []() {
+  _.test("dict_encoder", []() {
     std::stringstream ss;
-    bencode::encode_dict(ss)
+    bencode::dict_encoder(ss)
       .add("first", 1).add("second", "foo").add("third", 2)
       .end();
     expect(ss.str(), equal_to("d5:firsti1e6:second3:foo5:thirdi2ee"));
   });
 
   subsuite<>(_, "any", [](auto &_) {
-    using BENCODE_ANY_NAMESPACE::any;
+    using BENCODE_ANY_NS::any;
 
     _.test("integer", []() {
       any value = bencode::integer(666);
