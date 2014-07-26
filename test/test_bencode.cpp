@@ -3,20 +3,9 @@ using namespace mettle;
 
 #include "bencode.hpp"
 
-#include <sstream>
-
 suite<> test_decode("test decoding", [](auto &_) {
 
-  // Try to use N4082's any_cast, or fall back to Boost's.
-  #ifdef __has_include
-  #  if __has_include(<experimental/any>)
-  using std::experimental::any_cast;
-  #  else
-  using boost::any_cast;
-  #  endif
-  #else
-  using boost::any_cast;
-  #endif
+  using BENCODE_ANY_NAMESPACE::any_cast;
 
   _.test("integer", []() {
     auto value = bencode::decode("i666e");

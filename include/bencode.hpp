@@ -10,19 +10,20 @@
 #ifdef __has_include
 #  if __has_include(<experimental/any>)
 #    include <experimental/any>
-#    define BENCODE_ANY std::experimental::any
+#    define BENCODE_ANY_NAMESPACE std::experimental
 #  else
 #    include <boost/any.hpp>
-#    define BENCODE_ANY boost::any
+#    define BENCODE_ANY_NAMESPACE boost
 #  endif
 #else
 #  include <boost/any.hpp>
-#  define BENCODE_ANY boost::any
+#  define BENCODE_ANY_NAMESPACE boost
 #endif
 
 namespace bencode {
 
-  using any = BENCODE_ANY;
+  using any = BENCODE_ANY_NAMESPACE::any;
+
   using string = std::string;
   using integer = long long;
   using list = std::vector<boost::any>;
