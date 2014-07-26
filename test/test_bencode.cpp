@@ -61,6 +61,40 @@ suite<> test_encode("test encoding", [](auto &_) {
     expect(ss.str(), equal_to("d5:firsti1e6:second3:foo5:thirdi2ee"));
   });
 
+  subsuite<>(_, "any", [](auto &_) {
+    using BENCODE_ANY_NAMESPACE::any;
+
+    _.test("integer", []() {
+      any value = bencode::integer(666);
+      expect(bencode::encode(value), equal_to("i666e"));
+    });
+
+    _.test("string", []() {
+      any value = bencode::string("foo");
+      expect(bencode::encode(value), equal_to("3:foo"));
+    });
+
+    _.test("list", []() {
+      any value = bencode::list{
+        bencode::integer(1),
+        bencode::string("foo"),
+        bencode::integer(2)
+      };
+      expect(bencode::encode(value), equal_to("li1e3:fooi2ee"));
+    });
+
+    _.test("dict", []() {
+      any value = bencode::dict{
+        { bencode::string("a"), bencode::integer(1) },
+        { bencode::string("b"), bencode::string("foo") },
+        { bencode::string("c"), bencode::integer(2) }
+      };
+      expect(
+        bencode::encode(value), equal_to("d1:ai1e1:b3:foo1:ci2ee")
+      );
+    });
+  });
+
   subsuite<>(_, "vector", [](auto &_) {
     _.test("vector<int>", []() {
       std::vector<int> v = {1, 2, 3};

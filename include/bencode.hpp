@@ -26,11 +26,11 @@ namespace bencode {
 
   using string = std::string;
   using integer = long long;
-  using list = std::vector<boost::any>;
-  using dict = std::map<std::string, boost::any>;
+  using list = std::vector<BENCODE_ANY_NAMESPACE::any>;
+  using dict = std::map<std::string, BENCODE_ANY_NAMESPACE::any>;
 
   template<typename T>
-  any decode(T &begin, T end);
+  BENCODE_ANY_NAMESPACE::any decode(T &begin, T end);
 
   namespace detail {
 
@@ -117,9 +117,9 @@ namespace bencode {
   }
 
   template<typename T>
-  any decode(T &begin, T end) {
+  BENCODE_ANY_NAMESPACE::any decode(T &begin, T end) {
     if(begin == end)
-      return any();
+      return BENCODE_ANY_NAMESPACE::any();
 
     if(*begin == 'i')
       return detail::decode_int(begin, end);
@@ -130,16 +130,16 @@ namespace bencode {
     else if(std::isdigit(*begin))
       return detail::decode_str(begin, end);
 
-    throw std::runtime_error("unexpected type");
+    throw std::invalid_argument("unexpected type");
   }
 
   template<typename T>
-  inline any decode(const T &begin, T end) {
+  inline BENCODE_ANY_NAMESPACE::any decode(const T &begin, T end) {
     T b(begin);
     return decode(b, end);
   }
 
-  inline any decode(const std::string &s) {
+  inline BENCODE_ANY_NAMESPACE::any decode(const std::string &s) {
     return decode(s.begin(), s.end());
   }
 
@@ -157,8 +157,30 @@ namespace bencode {
   std::ostream & encode(std::ostream &os, const std::vector<T> &value);
 
   template<typename T>
-  std::ostream & encode(std::ostream &os,
-                        const std::map<std::string, T> &value);
+  std::ostream &
+  encode(std::ostream &os, const std::map<std::string, T> &value);
+
+  // Overload for `any`, but only if the passed-in type is already `any`. Don't
+  // accept an implicit conversion!
+  template<typename T>
+  auto encode(std::ostream &os, const T &value) ->
+  std::enable_if_t<
+    std::is_same<T, BENCODE_ANY_NAMESPACE::any>::value, std::ostream &
+  > {
+    using BENCODE_ANY_NAMESPACE::any_cast;
+    auto &type = value.type();
+
+    if(type == typeid(integer))
+      return encode(os, any_cast<integer>(value));
+    else if(type == typeid(string))
+      return encode(os, any_cast<string>(value));
+    else if(type == typeid(list))
+      return encode(os, any_cast<list>(value));
+    else if(type == typeid(dict))
+      return encode(os, any_cast<dict>(value));
+
+    throw std::invalid_argument("unexpected type");
+  }
 
   class encode_list {
   public:
@@ -208,8 +230,8 @@ namespace bencode {
   }
 
   template<typename T>
-  std::ostream & encode(std::ostream &os,
-                        const std::map<std::string, T> &value) {
+  std::ostream &
+  encode(std::ostream &os, const std::map<std::string, T> &value) {
     encode_dict e(os);
     for(auto &&i : value)
       e.add(i.first, i.second);
