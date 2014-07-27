@@ -3,6 +3,21 @@ using namespace mettle;
 
 #include "bencode.hpp"
 
+struct at_eof : matcher_tag {
+  bool operator ()(const std::string &) const {
+    return true;
+  }
+
+  template<typename Char, typename Traits>
+  bool operator ()(const std::basic_ios<Char, Traits> &ss) const {
+    return ss.eof();
+  }
+
+  std::string desc() const {
+    return "at eof";
+  }
+};
+
 suite<> test_decode("test decoder", [](auto &_) {
 
   using BENCODE_ANY_NS::any_cast;
@@ -13,16 +28,19 @@ suite<> test_decode("test decoder", [](auto &_) {
     _.test("integer", [](auto &) {
       Fixture pos("i666e");
       auto pos_value = bencode::decode(pos);
+      expect(pos, at_eof());
       expect(any_cast<bencode::integer>(pos_value), equal_to(666));
 
       Fixture neg("i-666e");
       auto neg_value = bencode::decode(neg);
+      expect(neg, at_eof());
       expect(any_cast<bencode::integer>(neg_value), equal_to(-666));
     });
 
     _.test("string", [](auto &) {
       Fixture data("4:spam");
       auto value = bencode::decode(data);
+      expect(data, at_eof());
       expect(any_cast<bencode::string>(value), equal_to("spam"));
     });
 
@@ -30,6 +48,7 @@ suite<> test_decode("test decoder", [](auto &_) {
       Fixture data("li666ee");
       auto value = bencode::decode(data);
       auto list = any_cast<bencode::list>(value);
+      expect(data, at_eof());
       expect(any_cast<bencode::integer>(list[0]), equal_to(666));
     });
 
@@ -37,6 +56,7 @@ suite<> test_decode("test decoder", [](auto &_) {
       Fixture data("d4:spami666ee");
       auto value = bencode::decode(data);
       auto dict = any_cast<bencode::dict>(value);
+      expect(data, at_eof());
       expect(any_cast<bencode::integer>(dict["spam"]), equal_to(666));
     });
   });
@@ -58,9 +78,11 @@ suite<> test_decode("test decoder", [](auto &_) {
 
       auto first = bencode::decode(data);
       expect(any_cast<bencode::integer>(first), equal_to(666));
+      expect(data, is_not(at_eof()));
 
       auto second = bencode::decode(data);
       expect(any_cast<bencode::string>(second), equal_to("goat"));
+      expect(data, at_eof());
     });
   });
 

@@ -225,7 +225,10 @@ namespace bencode {
 
   inline BENCODE_ANY_NS::any decode(std::istream &s) {
     std::istreambuf_iterator<char> begin(s), end;
-    return decode(begin, end);
+    auto result = decode(begin, end);
+    if(begin == end) // We hit EOF, so update the parent stream.
+      s.setstate(std::ios_base::eofbit);
+    return result;
   }
 
   template<typename T>
