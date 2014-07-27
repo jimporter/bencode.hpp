@@ -168,8 +168,8 @@ namespace bencode {
       while(begin != end && *begin != 'e') {
         if(!std::isdigit(*begin))
           throw std::invalid_argument("expected string token");
-        auto key = decode_str<View>(begin, end);
-        value[key] = decode_data<View>(begin, end);
+        value.emplace(decode_str<View>(begin, end),
+                      decode_data<View>(begin, end));
       }
 
       if(begin == end)
