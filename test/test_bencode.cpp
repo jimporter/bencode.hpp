@@ -3,49 +3,115 @@ using namespace mettle;
 
 #include "bencode.hpp"
 
-suite<> test_decode("test decoding", [](auto &_) {
+suite<> test_decode("test decoder", [](auto &_) {
 
   using BENCODE_ANY_NS::any_cast;
 
-  _.test("integer", []() {
-    auto value = bencode::decode("i666e");
-    expect(any_cast<bencode::integer>(value), equal_to(666));
+  subsuite<std::string, std::istringstream>(_, "decoding", [](auto &_) {
+    using Fixture = fixture_type_t<decltype(_)>;
 
-    auto neg_value = bencode::decode("i-666e");
-    expect(any_cast<bencode::integer>(neg_value), equal_to(-666));
+    _.test("integer", [](auto &) {
+      Fixture pos("i666e");
+      auto pos_value = bencode::decode(pos);
+      expect(any_cast<bencode::integer>(pos_value), equal_to(666));
+
+      Fixture neg("i-666e");
+      auto neg_value = bencode::decode(neg);
+      expect(any_cast<bencode::integer>(neg_value), equal_to(-666));
+    });
+
+    _.test("string", [](auto &) {
+      Fixture data("4:spam");
+      auto value = bencode::decode(data);
+      expect(any_cast<bencode::string>(value), equal_to("spam"));
+    });
+
+    _.test("list", [](auto &) {
+      Fixture data("li666ee");
+      auto value = bencode::decode(data);
+      auto list = any_cast<bencode::list>(value);
+      expect(any_cast<bencode::integer>(list[0]), equal_to(666));
+    });
+
+    _.test("dict", [](auto &) {
+      Fixture data("d4:spami666ee");
+      auto value = bencode::decode(data);
+      auto dict = any_cast<bencode::dict>(value);
+      expect(any_cast<bencode::integer>(dict["spam"]), equal_to(666));
+    });
   });
 
-  _.test("string", []() {
-    auto value = bencode::decode("4:spam");
-    expect(any_cast<bencode::string>(value), equal_to("spam"));
+  subsuite<>(_, "decode successive objects", [](auto &_) {
+    _.test("from string", []() {
+      std::string data("i666e4:goat");
+      auto begin = data.begin(), end = data.end();
+
+      auto first = bencode::decode(begin, end);
+      expect(any_cast<bencode::integer>(first), equal_to(666));
+
+      auto second = bencode::decode(begin, end);
+      expect(any_cast<bencode::string>(second), equal_to("goat"));
+    });
+
+    _.test("from stream", []() {
+      std::stringstream data("i666e4:goat");
+
+      auto first = bencode::decode(data);
+      expect(any_cast<bencode::integer>(first), equal_to(666));
+
+      auto second = bencode::decode(data);
+      expect(any_cast<bencode::string>(second), equal_to("goat"));
+    });
   });
 
-  _.test("list", []() {
-    auto value = bencode::decode("li666ee");
-    auto list = any_cast<bencode::list>(value);
-    expect(any_cast<bencode::integer>(list[0]), equal_to(666));
-  });
+  subsuite<>(_, "decode_view", [](auto &_) {
+    _.test("integer", []() {
+      std::string pos("i666e");
+      auto pos_value = bencode::decode_view(pos);
+      expect(any_cast<bencode::integer>(pos_value), equal_to(666));
 
-  _.test("dict", []() {
-    auto value = bencode::decode("d4:spami666ee");
-    auto dict = any_cast<bencode::dict>(value);
-    expect(any_cast<bencode::integer>(dict["spam"]), equal_to(666));
-  });
+      std::string neg("i-666e");
+      auto neg_value = bencode::decode_view(neg);
+      expect(any_cast<bencode::integer>(neg_value), equal_to(-666));
+    });
 
-  _.test("view", []() {
-    auto value = bencode::decode_view("4:spam");
-    expect(any_cast<bencode::string_view>(value), equal_to("spam"));
+    _.test("string", []() {
+      std::string data("4:spam");
+      auto in_range = all(
+        greater_equal(data.data()),
+        less_equal(data.data() + data.size())
+      );
 
-    auto value2 = bencode::decode_view("d4:spami666ee");
-    auto dict = any_cast<bencode::dict_view>(value2);
-    expect(any_cast<bencode::integer>(dict["spam"]), equal_to(666));
-  });
+      auto value = bencode::decode_view(data);
+      auto str = any_cast<bencode::string_view>(value);
+      expect(str.begin(), in_range);
+      expect(str.end(), in_range);
+      expect(str, equal_to("spam"));
+    });
 
-  _.test("istream", []() {
-    std::stringstream ss("d4:spami666ee");
-    auto value2 = bencode::decode(ss);
-    auto dict = any_cast<bencode::dict>(value2);
-    expect(any_cast<bencode::integer>(dict["spam"]), equal_to(666));
+    _.test("list", []() {
+      std::string data("li666ee");
+      auto value = bencode::decode_view(data);
+      auto list = any_cast<bencode::list>(value);
+      expect(any_cast<bencode::integer>(list[0]), equal_to(666));
+    });
+
+    _.test("dict", []() {
+      std::string data("d4:spami666ee");
+      auto in_range = all(
+        greater_equal(data.data()),
+        less_equal(data.data() + data.size())
+      );
+
+      auto value = bencode::decode_view(data);
+      auto dict = any_cast<bencode::dict_view>(value);
+      auto str = dict.find("spam")->first;
+      expect(str.begin(), in_range);
+      expect(str.end(), in_range);
+      expect(str, equal_to("spam"));
+
+      expect(any_cast<bencode::integer>(dict["spam"]), equal_to(666));
+    });
   });
 
   subsuite<>(_, "error handling", [](auto &_) {
@@ -90,7 +156,7 @@ suite<> test_decode("test decoding", [](auto &_) {
 
 });
 
-suite<> test_encode("test encoding", [](auto &_) {
+suite<> test_encode("test encoder", [](auto &_) {
 
   _.test("integer", []() {
     expect(bencode::encode(666), equal_to("i666e"));

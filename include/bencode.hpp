@@ -103,9 +103,10 @@ namespace bencode {
                          std::istreambuf_iterator<T> end, U len) {
         std::string value(len, 0);
         for(U i = 0; i < len; i++) {
-          value[i] = *begin;
-          if(++begin == end)
+          if(begin == end)
             throw std::invalid_argument("unexpected end of string");
+          value[i] = *begin;
+          ++begin;
         }
         return value;
       }
