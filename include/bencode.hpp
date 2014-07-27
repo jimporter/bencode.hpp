@@ -1,3 +1,6 @@
+#ifndef INC_BENCODE_HPP
+#define INC_BENCODE_HPP
+
 #include <cassert>
 #include <cstring>
 #include <iostream>
@@ -378,3 +381,5 @@ namespace bencode {
   }
 
 }
+
+#endif
