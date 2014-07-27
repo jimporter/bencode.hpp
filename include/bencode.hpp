@@ -168,8 +168,14 @@ namespace bencode {
       while(begin != end && *begin != 'e') {
         if(!std::isdigit(*begin))
           throw std::invalid_argument("expected string token");
-        value.emplace(decode_str<View>(begin, end),
-                      decode_data<View>(begin, end));
+
+        auto result = value.emplace(decode_str<View>(begin, end),
+                                    decode_data<View>(begin, end));
+        if(!result.second) {
+          throw std::invalid_argument(
+            "duplicated key in dict: " + std::string(result.first->first)
+          );
+        }
       }
 
       if(begin == end)

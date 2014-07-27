@@ -81,6 +81,11 @@ suite<> test_decode("test decoding", [](auto &_) {
       expect([]() { bencode::decode("di123ee"); },
              thrown<std::invalid_argument>("expected string token"));
     });
+
+    _.test("duplicated key", []() {
+      expect([]() { bencode::decode("d3:fooi1e3:fooi1ee"); },
+             thrown<std::invalid_argument>("duplicated key in dict: foo"));
+    });
   });
 
 });
