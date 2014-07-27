@@ -28,8 +28,17 @@ suite<> test_decode("test decoding", [](auto &_) {
 
   _.test("dict", []() {
     auto value = bencode::decode("d4:spami666ee");
-    auto d = any_cast<bencode::dict>(value);
-    expect(any_cast<bencode::integer>(d["spam"]), equal_to(666));
+    auto dict = any_cast<bencode::dict>(value);
+    expect(any_cast<bencode::integer>(dict["spam"]), equal_to(666));
+  });
+
+  _.test("view", []() {
+    auto value = bencode::decode_view("4:spam");
+    expect(any_cast<bencode::string_view>(value), equal_to("spam"));
+
+    auto value2 = bencode::decode_view("d4:spami666ee");
+    auto dict = any_cast<bencode::dict_view>(value2);
+    expect(any_cast<bencode::integer>(dict["spam"]), equal_to(666));
   });
 
   subsuite<>(_, "error handling", [](auto &_) {

@@ -39,13 +39,23 @@ namespace bencode {
   using list = std::vector<BENCODE_ANY_NS::any>;
   using dict = std::map<std::string, BENCODE_ANY_NS::any>;
 
+#ifdef BENCODE_HAS_STRING_VIEW
+  using string_view = BENCODE_STRING_VIEW;
+  using dict_view = std::map<BENCODE_STRING_VIEW, BENCODE_ANY_NS::any>;
+#else
+  using string_view = void;
+  using dict_view = void;
+#endif
+
   template<typename T>
   BENCODE_ANY_NS::any decode(T &begin, T end);
 
   namespace detail {
+    template<bool View, typename T>
+    BENCODE_ANY_NS::any decode_data(T &begin, T end);
 
     template<typename T>
-    integer decode_int(T &begin, T end) {
+    integer decode_int_real(T &begin, T end) {
       assert(*begin == 'i');
       ++begin;
 
@@ -68,8 +78,32 @@ namespace bencode {
       return positive ? value : -value;
     }
 
-    template<typename T>
-    string decode_str(T &begin, T end) {
+    template<bool View, typename T>
+    inline integer decode_int(T &begin, T end) {
+      return decode_int_real(begin, end);
+    }
+
+    template<bool View>
+    struct str_maker {
+      template<typename T, typename U>
+      string operator ()(T begin, T end, U len) {
+        std::string value(len, 0);
+        std::copy(begin, end, value.begin());
+        return value;
+      }
+    };
+
+    template<>
+    struct str_maker<true> {
+      template<typename T, typename U>
+      string_view operator ()(T begin, T, U len) {
+        return string_view(begin, len);
+      }
+    };
+
+    template<bool View, typename T>
+    typename std::conditional<View, string_view, string>::type
+    decode_str(T &begin, T end) {
       assert(std::isdigit(*begin));
       size_t len = 0;
       for(; begin != end && std::isdigit(*begin); ++begin)
@@ -83,21 +117,19 @@ namespace bencode {
       if(std::distance(begin, end) < static_cast<ssize_t>(len))
         throw std::invalid_argument("unexpected end of string");
 
-      std::string value(len, 0);
       T str_start = begin;
       std::advance(begin, len);
-      std::copy(str_start, begin, value.begin());
-      return value;
+      return str_maker<View>{}(str_start, begin, len);
     }
 
-    template<typename T>
+    template<bool View, typename T>
     list decode_list(T &begin, T end) {
       assert(*begin == 'l');
       ++begin;
 
       list value;
       while(begin != end && *begin != 'e') {
-        value.push_back(decode(begin, end));
+        value.push_back(decode_data<View>(begin, end));
       }
 
       if(begin == end)
@@ -107,17 +139,18 @@ namespace bencode {
       return value;
     }
 
-    template<typename T>
-    dict decode_dict(T &begin, T end) {
+    template<bool View, typename T>
+    typename std::conditional<View, dict_view, dict>::type
+    decode_dict(T &begin, T end) {
       assert(*begin == 'd');
       ++begin;
 
-      dict value;
+      typename std::conditional<View, dict_view, dict>::type value;
       while(begin != end && *begin != 'e') {
         if(!std::isdigit(*begin))
           throw std::invalid_argument("expected string token");
-        auto key = decode_str(begin, end);
-        value[key] = decode(begin, end);
+        auto key = decode_str<View>(begin, end);
+        value[key] = decode_data<View>(begin, end);
       }
 
       if(begin == end)
@@ -125,35 +158,55 @@ namespace bencode {
 
       ++begin;
       return value;
+    }
+
+    template<bool View, typename T>
+    BENCODE_ANY_NS::any decode_data(T &begin, T end) {
+      if(begin == end)
+        return BENCODE_ANY_NS::any();
+
+      if(*begin == 'i')
+        return decode_int<View>(begin, end);
+      else if(*begin == 'l')
+        return decode_list<View>(begin, end);
+      else if(*begin == 'd')
+        return decode_dict<View>(begin, end);
+      else if(std::isdigit(*begin))
+        return decode_str<View>(begin, end);
+
+      throw std::invalid_argument("unexpected type");
     }
 
   }
 
   template<typename T>
-  BENCODE_ANY_NS::any decode(T &begin, T end) {
-    if(begin == end)
-      return BENCODE_ANY_NS::any();
-
-    if(*begin == 'i')
-      return detail::decode_int(begin, end);
-    else if(*begin == 'l')
-      return detail::decode_list(begin, end);
-    else if(*begin == 'd')
-      return detail::decode_dict(begin, end);
-    else if(std::isdigit(*begin))
-      return detail::decode_str(begin, end);
-
-    throw std::invalid_argument("unexpected type");
+  inline BENCODE_ANY_NS::any decode(T &begin, T end) {
+    return detail::decode_data<false>(begin, end);
   }
 
   template<typename T>
   inline BENCODE_ANY_NS::any decode(const T &begin, T end) {
     T b(begin);
-    return decode(b, end);
+    return detail::decode_data<false>(b, end);
   }
 
   inline BENCODE_ANY_NS::any decode(const BENCODE_STRING_VIEW &s) {
     return decode(s.begin(), s.end());
+  }
+
+  template<typename T>
+  inline BENCODE_ANY_NS::any decode_view(T &begin, T end) {
+    return detail::decode_data<true>(begin, end);
+  }
+
+  template<typename T>
+  inline BENCODE_ANY_NS::any decode_view(const T &begin, T end) {
+    T b(begin);
+    return detail::decode_data<true>(b, end);
+  }
+
+  inline BENCODE_ANY_NS::any decode_view(const BENCODE_STRING_VIEW &s) {
+    return decode_view(s.begin(), s.end());
   }
 
   class list_encoder {
@@ -207,7 +260,7 @@ namespace bencode {
   // accept an implicit conversion!
   template<typename T>
   auto encode(std::ostream &os, const T &value) ->
-  std::enable_if_t<std::is_same<T, BENCODE_ANY_NS::any>::value> {
+  typename std::enable_if<std::is_same<T, BENCODE_ANY_NS::any>::value>::type {
     using BENCODE_ANY_NS::any_cast;
     auto &type = value.type();
 
