@@ -7,7 +7,7 @@
 
 Currently, this code is tested in C++14 (clang 3.4). The tests themselves
 *require* C++14 (see [mettle](http://jimporter.github.io/mettle/)), but the
-library itself should be happy with C++03. You'll also need Boost (or N4082) for
+library itself should be happy with C++11. You'll also need Boost (or N4082) for
 the `any` type.
 
 ## License
