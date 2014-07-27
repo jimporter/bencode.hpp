@@ -35,8 +35,6 @@
 
 namespace bencode {
 
-  using any = BENCODE_ANY_NS::any;
-
   using string = std::string;
   using integer = long long;
   using list = std::vector<BENCODE_ANY_NS::any>;
