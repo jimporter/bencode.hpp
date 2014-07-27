@@ -41,6 +41,13 @@ suite<> test_decode("test decoding", [](auto &_) {
     expect(any_cast<bencode::integer>(dict["spam"]), equal_to(666));
   });
 
+  _.test("istream", []() {
+    std::stringstream ss("d4:spami666ee");
+    auto value2 = bencode::decode(ss);
+    auto dict = any_cast<bencode::dict>(value2);
+    expect(any_cast<bencode::integer>(dict["spam"]), equal_to(666));
+  });
+
   subsuite<>(_, "error handling", [](auto &_) {
     _.test("unexpected type", []() {
       expect([]() { bencode::decode("x"); },

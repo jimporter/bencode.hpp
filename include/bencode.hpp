@@ -84,20 +84,43 @@ namespace bencode {
     }
 
     template<bool View>
-    struct str_maker {
+    struct str_reader {
       template<typename T, typename U>
-      string operator ()(T begin, T end, U len) {
+      string operator ()(T &begin, T end, U len) {
+        if(std::distance(begin, end) < static_cast<ssize_t>(len))
+          throw std::invalid_argument("unexpected end of string");
+
         std::string value(len, 0);
-        std::copy(begin, end, value.begin());
+        std::copy_n(begin, len, value.begin());
+        std::advance(begin, len);
+        return value;
+      }
+
+      // XXX: This should be used for all single-pass iterators, not just
+      // std::istreambuf_iterator.
+      template<typename T, typename U>
+      string operator ()(std::istreambuf_iterator<T> &begin,
+                         std::istreambuf_iterator<T> end, U len) {
+        std::string value(len, 0);
+        for(U i = 0; i < len; i++) {
+          value[i] = *begin;
+          if(++begin == end)
+            throw std::invalid_argument("unexpected end of string");
+        }
         return value;
       }
     };
 
     template<>
-    struct str_maker<true> {
+    struct str_reader<true> {
       template<typename T, typename U>
-      string_view operator ()(T begin, T, U len) {
-        return string_view(begin, len);
+      string_view operator ()(T &begin, T end, U len) {
+        if(std::distance(begin, end) < static_cast<ssize_t>(len))
+          throw std::invalid_argument("unexpected end of string");
+
+        string_view value(begin, len);
+        std::advance(begin, len);
+        return value;
       }
     };
 
@@ -114,12 +137,8 @@ namespace bencode {
       if(*begin != ':')
         throw std::invalid_argument("expected ':'");
       ++begin;
-      if(std::distance(begin, end) < static_cast<ssize_t>(len))
-        throw std::invalid_argument("unexpected end of string");
 
-      T str_start = begin;
-      std::advance(begin, len);
-      return str_maker<View>{}(str_start, begin, len);
+      return str_reader<View>{}(begin, end, len);
     }
 
     template<bool View, typename T>
@@ -192,6 +211,11 @@ namespace bencode {
 
   inline BENCODE_ANY_NS::any decode(const BENCODE_STRING_VIEW &s) {
     return decode(s.begin(), s.end());
+  }
+
+  inline BENCODE_ANY_NS::any decode(std::istream &s) {
+    std::istreambuf_iterator<char> begin(s), end;
+    return decode(begin, end);
   }
 
   template<typename T>
