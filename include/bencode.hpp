@@ -286,10 +286,30 @@ namespace bencode {
   }
 
   template<typename T>
-  void encode(std::ostream &os, const std::vector<T> &value);
+  void encode(std::ostream &os, const std::vector<T> &value) {
+    list_encoder e(os);
+    for(auto &&i : value)
+      e.add(i);
+    e.end();
+  }
 
   template<typename T>
-  void encode(std::ostream &os, const std::map<std::string, T> &value);
+  void encode(std::ostream &os, const std::map<std::string, T> &value) {
+    dict_encoder e(os);
+    for(auto &&i : value)
+      e.add(i.first, i.second);
+    e.end();
+  }
+
+#ifdef BENCODE_HAS_STRING_VIEW
+  template<typename T>
+  void encode(std::ostream &os, const std::map<BENCODE_STRING_VIEW, T> &value) {
+    dict_encoder e(os);
+    for(auto &&i : value)
+      e.add(i.first, i.second);
+    e.end();
+  }
+#endif
 
   // Overload for `any`, but only if the passed-in type is already `any`. Don't
   // accept an implicit conversion!
@@ -307,24 +327,14 @@ namespace bencode {
       encode(os, any_cast<list>(value));
     else if(type == typeid(dict))
       encode(os, any_cast<dict>(value));
+#ifdef BENCODE_HAS_STRING_VIEW
+    else if(type == typeid(string_view))
+      encode(os, any_cast<string_view>(value));
+    else if(type == typeid(dict_view))
+      encode(os, any_cast<dict_view>(value));
+#endif
     else
       throw std::invalid_argument("unexpected type");
-  }
-
-  template<typename T>
-  void encode(std::ostream &os, const std::vector<T> &value) {
-    list_encoder e(os);
-    for(auto &&i : value)
-      e.add(i);
-    e.end();
-  }
-
-  template<typename T>
-  void encode(std::ostream &os, const std::map<std::string, T> &value) {
-    dict_encoder e(os);
-    for(auto &&i : value)
-      e.add(i.first, i.second);
-    e.end();
   }
 
   namespace detail {
