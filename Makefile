@@ -1,6 +1,6 @@
 CXX := clang++
 CXXFLAGS := -std=c++1y -stdlib=libc++ -Wall -Wextra -pedantic -Werror
-LDFLAGS := -lboost_program_options -lsupc++
+LDFLAGS := -lsupc++
 
 TESTS := $(patsubst %.cpp,%,$(wildcard test/*.cpp))
 
@@ -19,8 +19,8 @@ TESTS := $(patsubst %.cpp,%,$(wildcard test/*.cpp))
 	  sed -e 's/^ *//' -e 's/$$/:/' >> $*.d
 	@rm -f $(TEMP)
 
-$(TESTS) $(EXAMPLES): %: %.o
-	$(CXX) $(CXXFLAGS) $< $(LDFLAGS) -o $@
+$(TESTS): %: %.o
+	$(CXX) $(CXXFLAGS) $< $(LDFLAGS) -lmettle -o $@
 
 tests: $(TESTS)
 
