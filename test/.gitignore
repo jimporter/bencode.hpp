@@ -1,1 +1,2 @@
-test_bencode
+test_decode
+test_encode
