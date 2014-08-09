@@ -387,7 +387,21 @@ namespace bencode {
   template<typename T>
   std::string encode(T &&t) {
     std::stringstream ss;
-    encode(ss, t);
+    encode(ss, std::forward<T>(t));
+    return ss.str();
+  }
+
+  template<typename T>
+  std::string encode_list(T &&t) {
+    std::stringstream ss;
+    encode_list(ss, std::forward<T>(t));
+    return ss.str();
+  }
+
+  template<typename T>
+  std::string encode_dict(T &&t) {
+    std::stringstream ss;
+    encode_dict(ss, std::forward<T>(t));
     return ss.str();
   }
 
