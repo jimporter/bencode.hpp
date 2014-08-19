@@ -22,10 +22,11 @@ suite<> test_decode("test decoder", [](auto &_) {
 
   using BENCODE_ANY_NS::any_cast;
 
-  subsuite<std::string, std::istringstream>(_, "decoding", [](auto &_) {
+  subsuite<std::string, std::istringstream>(_, "decoding", type_only,
+                                            [](auto &_) {
     using Fixture = fixture_type_t<decltype(_)>;
 
-    _.test("integer", [](auto &) {
+    _.test("integer", []() {
       Fixture pos("i666e");
       auto pos_value = bencode::decode(pos);
       expect(pos, at_eof());
@@ -37,14 +38,14 @@ suite<> test_decode("test decoder", [](auto &_) {
       expect(any_cast<bencode::integer>(neg_value), equal_to(-666));
     });
 
-    _.test("string", [](auto &) {
+    _.test("string", []() {
       Fixture data("4:spam");
       auto value = bencode::decode(data);
       expect(data, at_eof());
       expect(any_cast<bencode::string>(value), equal_to("spam"));
     });
 
-    _.test("list", [](auto &) {
+    _.test("list", []() {
       Fixture data("li666ee");
       auto value = bencode::decode(data);
       auto list = any_cast<bencode::list>(value);
@@ -52,7 +53,7 @@ suite<> test_decode("test decoder", [](auto &_) {
       expect(any_cast<bencode::integer>(list[0]), equal_to(666));
     });
 
-    _.test("dict", [](auto &) {
+    _.test("dict", []() {
       Fixture data("d4:spami666ee");
       auto value = bencode::decode(data);
       auto dict = any_cast<bencode::dict>(value);
