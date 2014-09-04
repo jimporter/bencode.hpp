@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <iterator>
 #include <iostream>
 #include <map>
 #include <sstream>
@@ -85,9 +86,18 @@ namespace bencode {
     }
 
     template<bool View>
-    struct str_reader {
-      template<typename T, typename U>
-      string operator ()(T &begin, T end, U len) {
+    class str_reader {
+    public:
+      template<typename Iter, typename Size>
+      inline string operator ()(Iter &begin, Iter end, Size len) {
+        return call(
+          begin, end, len,
+          typename std::iterator_traits<Iter>::iterator_category()
+        );
+      }
+    private:
+      template<typename Iter, typename Size>
+      string call(Iter &begin, Iter end, Size len, std::forward_iterator_tag) {
         if(std::distance(begin, end) < static_cast<ssize_t>(len))
           throw std::invalid_argument("unexpected end of string");
 
@@ -97,13 +107,10 @@ namespace bencode {
         return value;
       }
 
-      // XXX: This should be used for all single-pass iterators, not just
-      // std::istreambuf_iterator.
-      template<typename T, typename U>
-      string operator ()(std::istreambuf_iterator<T> &begin,
-                         std::istreambuf_iterator<T> end, U len) {
+      template<typename Iter, typename Size>
+      string call(Iter &begin, Iter end, Size len, std::input_iterator_tag) {
         std::string value(len, 0);
-        for(U i = 0; i < len; i++) {
+        for(Size i = 0; i < len; i++) {
           if(begin == end)
             throw std::invalid_argument("unexpected end of string");
           value[i] = *begin;
@@ -114,9 +121,10 @@ namespace bencode {
     };
 
     template<>
-    struct str_reader<true> {
-      template<typename T, typename U>
-      string_view operator ()(T &begin, T end, U len) {
+    class str_reader<true> {
+    public:
+      template<typename Iter, typename Size>
+      string_view operator ()(Iter &begin, Iter end, Size len) {
         if(std::distance(begin, end) < static_cast<ssize_t>(len))
           throw std::invalid_argument("unexpected end of string");
 
