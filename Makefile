@@ -1,6 +1,8 @@
-CXX := clang++
-CXXFLAGS := -std=c++1y -stdlib=libc++ -Wall -Wextra -pedantic -Werror
-LDFLAGS := -lsupc++
+CXXFLAGS := -std=c++1y
+
+-include config.mk
+
+CXXFLAGS += -Wall -Wextra -pedantic -Werror
 
 TESTS := $(patsubst %.cpp,%,$(wildcard test/*.cpp))
 
@@ -23,6 +25,10 @@ $(TESTS): %: %.o
 	$(CXX) $(CXXFLAGS) $< $(LDFLAGS) -lmettle -o $@
 
 tests: $(TESTS)
+
+.PHONY: install
+install:
+	cp -R include $(PREFIX)/include
 
 .PHONY: test
 test: tests
