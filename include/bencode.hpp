@@ -11,8 +11,7 @@
 #include <string>
 #include <vector>
 
-// 1) Try to use N4082's any class, or fall back to Boost's.
-// 2) Try to use N4082's string_view class, or fall back to std::string
+// Try to use N4082's any and string_view classes, or fall back to Boost's.
 #ifdef __has_include
 #  if __has_include(<experimental/any>)
 #    include <experimental/any>
@@ -26,12 +25,14 @@
 #    define BENCODE_HAS_STRING_VIEW
 #    define BENCODE_STRING_VIEW std::experimental::string_view
 #  else
-#    define BENCODE_STRING_VIEW std::string
+#    include <boost/utility/string_ref.hpp>
+#    define BENCODE_STRING_VIEW boost::string_ref
 #  endif
 #else
 #  include <boost/any.hpp>
+#  include <boost/utility/string_ref.hpp>
 #  define BENCODE_ANY_NS boost
-#  define BENCODE_STRING_VIEW std::string
+#  define BENCODE_STRING_VIEW boost::string_ref
 #endif
 
 namespace bencode {
