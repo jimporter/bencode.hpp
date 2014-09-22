@@ -1,6 +1,6 @@
 # bencode.hpp
 
-``bencode.hpp`` is a small, header-only C++ library for parsing
+`bencode.hpp` is a small, header-only C++ library for parsing
 [bencoded](http://en.wikipedia.org/wiki/Bencode) data.
 
 ## Requirements
@@ -11,6 +11,17 @@ library itself should be happy with C++11. You'll also need
 [Boost](http://www.boost.org/) (or
 [N4082](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2014/n4082.pdf)) for
 the `any` type.
+
+## Installation
+
+Since `bencode.hpp` is a header-only library, you only need to run
+
+```sh
+make install
+```
+
+to install it. You can also set the environment variable `PREFIX` to choose an
+installation location (or put this variable in `config.mk`).
 
 ## License
 
