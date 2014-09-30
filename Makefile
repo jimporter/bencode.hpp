@@ -3,8 +3,6 @@ PREFIX := /usr
 
 -include config.mk
 
-CXXFLAGS += -Wall -Wextra -pedantic -Werror
-
 TESTS := $(patsubst %.cpp,%,$(wildcard test/*.cpp))
 
 # Include all the existing dependency files for automatic #include dependency
