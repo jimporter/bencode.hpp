@@ -22,7 +22,6 @@
 #  endif
 #  if __has_include(<experimental/string_view>)
 #    include <experimental/string_view>
-#    define BENCODE_HAS_STRING_VIEW
 #    define BENCODE_STRING_VIEW std::experimental::string_view
 #  else
 #    include <boost/utility/string_ref.hpp>
@@ -42,13 +41,8 @@ namespace bencode {
   using list = std::vector<BENCODE_ANY_NS::any>;
   using dict = std::map<std::string, BENCODE_ANY_NS::any>;
 
-#ifdef BENCODE_HAS_STRING_VIEW
   using string_view = BENCODE_STRING_VIEW;
   using dict_view = std::map<BENCODE_STRING_VIEW, BENCODE_ANY_NS::any>;
-#else
-  using string_view = void;
-  using dict_view = void;
-#endif
 
   template<typename T>
   BENCODE_ANY_NS::any decode(T &begin, T end);
