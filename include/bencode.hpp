@@ -44,6 +44,11 @@ namespace bencode {
   using string_view = BENCODE_STRING_VIEW;
   using dict_view = std::map<BENCODE_STRING_VIEW, BENCODE_ANY_NS::any>;
 
+  enum eof_behavior {
+    check_eof,
+    no_check_eof
+  };
+
   template<typename T>
   BENCODE_ANY_NS::any decode(T &begin, T end);
 
@@ -224,10 +229,12 @@ namespace bencode {
     return decode(s.begin(), s.end());
   }
 
-  inline BENCODE_ANY_NS::any decode(std::istream &s) {
+  inline BENCODE_ANY_NS::any
+  decode(std::istream &s, eof_behavior e = check_eof) {
     std::istreambuf_iterator<char> begin(s), end;
     auto result = decode(begin, end);
-    if(begin == end) // We hit EOF, so update the parent stream.
+    // If we hit EOF, update the parent stream.
+    if(e == check_eof && begin == end)
       s.setstate(std::ios_base::eofbit);
     return result;
   }
