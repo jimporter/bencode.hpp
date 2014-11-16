@@ -3,6 +3,10 @@ PREFIX := /usr
 
 -include config.mk
 
+ifndef TMPDIR
+  TMPDIR := /tmp
+endif
+
 TESTS := $(patsubst %.cpp,%,$(wildcard test/*.cpp))
 
 # Include all the existing dependency files for automatic #include dependency
@@ -13,8 +17,8 @@ TESTS := $(patsubst %.cpp,%,$(wildcard test/*.cpp))
 # <http://scottmcpeak.com/autodepend/autodepend.html>.
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -Iinclude -c $< -o $@
-	$(eval TEMP := $(shell mktemp))
-	$(CXX) $(CXXFLAGS) -MM -Iinclude $< > $(TEMP)
+	$(eval TEMP := $(shell mktemp $(TMPDIR)/bencode-XXXXXX))
+	@$(CXX) $(CXXFLAGS) -MM -Iinclude $< > $(TEMP)
 	@sed -e 's|.*:|$*.o:|' < $(TEMP) > $*.d
 	@sed -e 's/.*://' -e 's/\\$$//' < $(TEMP) | fmt -1 | \
 	  sed -e 's/^ *//' -e 's/$$/:/' >> $*.d
