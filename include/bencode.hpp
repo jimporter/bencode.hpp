@@ -2,6 +2,7 @@
 #define INC_BENCODE_HPP
 
 #include <cassert>
+#include <cctype>
 #include <cstring>
 #include <iterator>
 #include <iostream>
