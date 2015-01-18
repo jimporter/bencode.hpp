@@ -99,7 +99,7 @@ namespace bencode {
     private:
       template<typename Iter, typename Size>
       string call(Iter &begin, Iter end, Size len, std::forward_iterator_tag) {
-        if(std::distance(begin, end) < static_cast<ssize_t>(len))
+        if(std::distance(begin, end) < static_cast<ptrdiff_t>(len))
           throw std::invalid_argument("unexpected end of string");
 
         std::string value(len, 0);
@@ -126,7 +126,7 @@ namespace bencode {
     public:
       template<typename Iter, typename Size>
       string_view operator ()(Iter &begin, Iter end, Size len) {
-        if(std::distance(begin, end) < static_cast<ssize_t>(len))
+        if(std::distance(begin, end) < static_cast<ptrdiff_t>(len))
           throw std::invalid_argument("unexpected end of string");
 
         string_view value(begin, len);
