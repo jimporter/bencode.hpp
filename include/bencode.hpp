@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <cctype>
+#include <cstdint>
 #include <cstring>
 #include <iterator>
 #include <iostream>
@@ -99,7 +100,7 @@ namespace bencode {
     private:
       template<typename Iter, typename Size>
       string call(Iter &begin, Iter end, Size len, std::forward_iterator_tag) {
-        if(std::distance(begin, end) < static_cast<ptrdiff_t>(len))
+        if(std::distance(begin, end) < static_cast<std::ptrdiff_t>(len))
           throw std::invalid_argument("unexpected end of string");
 
         std::string value(len, 0);
@@ -126,7 +127,7 @@ namespace bencode {
     public:
       template<typename Iter, typename Size>
       string_view operator ()(Iter &begin, Iter end, Size len) {
-        if(std::distance(begin, end) < static_cast<ptrdiff_t>(len))
+        if(std::distance(begin, end) < static_cast<std::ptrdiff_t>(len))
           throw std::invalid_argument("unexpected end of string");
 
         string_view value(begin, len);
@@ -139,7 +140,7 @@ namespace bencode {
     typename std::conditional<View, string_view, string>::type
     decode_str(T &begin, T end) {
       assert(std::isdigit(*begin));
-      size_t len = 0;
+      std::size_t len = 0;
       for(; begin != end && std::isdigit(*begin); ++begin)
         len = len * 10 + *begin - '0';
 
