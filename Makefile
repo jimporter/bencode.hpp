@@ -31,7 +31,7 @@ tests: $(TESTS)
 
 .PHONY: install
 install:
-	cp -R include $(PREFIX)/include
+	cp -R include $(PREFIX)
 
 .PHONY: test
 test: tests
