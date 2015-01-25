@@ -181,8 +181,9 @@ namespace bencode {
         if(!std::isdigit(*begin))
           throw std::invalid_argument("expected string token");
 
-        auto result = value.emplace(decode_str<View>(begin, end),
-                                    decode_data<View>(begin, end));
+        auto k = decode_str<View>(begin, end);
+        auto v = decode_data<View>(begin, end);
+        auto result = value.emplace(std::move(k), std::move(v));
         if(!result.second) {
           throw std::invalid_argument(
             "duplicated key in dict: " + std::string(result.first->first)
