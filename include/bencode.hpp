@@ -1,6 +1,7 @@
 #ifndef INC_BENCODE_HPP
 #define INC_BENCODE_HPP
 
+#include <algorithm>
 #include <cassert>
 #include <cctype>
 #include <cstdint>
