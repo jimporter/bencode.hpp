@@ -16,13 +16,9 @@ TESTS := $(patsubst %.cpp,%,$(wildcard test/*.cpp))
 # Build .o files and the corresponding .d (dependency) files. For more info, see
 # <http://scottmcpeak.com/autodepend/autodepend.html>.
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) -Iinclude -c $< -o $@
-	$(eval TEMP := $(shell mktemp $(TMPDIR)/bencode-XXXXXX))
-	@$(CXX) $(CXXFLAGS) -MM -Iinclude $< > $(TEMP)
-	@sed -e 's|.*:|$*.o:|' < $(TEMP) > $*.d
-	@sed -e 's/.*://' -e 's/\\$$//' < $(TEMP) | fmt -1 | \
+	$(CXX) $(CXXFLAGS) -Iinclude -MMD -MF $*.d -c $< -o $@
+	@sed -e 's/.*://' -e 's/\\$$//' < $*.d | fmt -1 | \
 	  sed -e 's/^ *//' -e 's/$$/:/' >> $*.d
-	@rm -f $(TEMP)
 
 $(TESTS): %: %.o
 	$(CXX) $(CXXFLAGS) $< $(LDFLAGS) -lmettle -o $@
@@ -35,7 +31,7 @@ install:
 
 .PHONY: test
 test: tests
-	mettle --output=verbose --color $(TESTS)
+	mettle --color --output=verbose $(TESTS)
 
 .PHONY: clean
 clean:
