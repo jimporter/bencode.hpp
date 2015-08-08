@@ -3,10 +3,6 @@ PREFIX := /usr
 
 -include config.mk
 
-ifndef TMPDIR
-  TMPDIR := /tmp
-endif
-
 TESTS := $(patsubst %.cpp,%,$(wildcard test/*.cpp))
 
 # Include all the existing dependency files for automatic #include dependency
