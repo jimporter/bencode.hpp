@@ -1,27 +1,29 @@
 # bencode.hpp
 
-`bencode.hpp` is a small, header-only C++ library for parsing
+**bencode.hpp** is a small, header-only C++ library for parsing
 [bencoded](http://en.wikipedia.org/wiki/Bencode) data.
 
 ## Requirements
 
-Currently, this code is tested in C++14 (clang 3.4). The tests themselves
-*require* C++14 (see [mettle](http://jimporter.github.io/mettle/)), but the
-library itself should be happy with C++11. You'll also need
-[Boost](http://www.boost.org/) (or
-[N4082](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2014/n4082.pdf)) for
-the `any` type.
+This library requires a C++11 compiler, plus either
+[Boost](http://www.boost.org/) 1.23+ or the [Library Fundamentals
+TS](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2014/n4082.pdf) (for
+the `any` type). The tests additionally require a C++14 compiler and
+[mettle](http://jimporter.github.io/mettle/).
 
 ## Installation
 
-Since `bencode.hpp` is a header-only library, you only need to run
+bencode.hpp uses [bfg9000](https://github.com/jimporter/bfg9000) to build and
+test itself. Building with `bfg9000` is straightforward. Just run the following:
 
 ```sh
-make install
+$ bfg9000 /path/to/mettle build
+$ cd build
+$ ninja install
 ```
 
-to install it. You can also set the environment variable `PREFIX` to choose an
-installation location (or put this variable in `config.mk`).
+However, since bencode.hpp is a single-file, header-only library, you can just
+copy `include/bencode.hpp` to your destination of choice.
 
 ## License
 
