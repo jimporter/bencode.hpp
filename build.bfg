@@ -11,7 +11,7 @@ install(includes)
 
 boost = boost_package(version='>=1.23')
 libmettle = system_package('mettle')
-mettle = test_driver('mettle', options=['--color', '--output=verbose'])
+mettle = test_driver('mettle', options=['--output=verbose'])
 
 for src in find_files('test', '*.cpp'):
     test(executable(
