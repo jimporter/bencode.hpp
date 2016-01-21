@@ -14,8 +14,8 @@
 #include <string>
 #include <vector>
 
-// Try to use N4082's any and string_view classes, or fall back to Boost's.
-#ifdef __has_include
+// Try to use N4480's any and string_view classes, or fall back to Boost's.
+#if !defined(BENCODE_NO_STDLIB_EXTS) && defined(__has_include)
 #  if __has_include(<experimental/any>)
 #    include <experimental/any>
 #    define BENCODE_ANY_NS std::experimental
