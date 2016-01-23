@@ -14,9 +14,21 @@
 #include <string>
 #include <vector>
 
+// Get _LIBCPP_VERSION to detect libc++.
+#include <ciso646>
+
 // Try to use N4480's any and string_view classes, or fall back to Boost's.
-#if !defined(BENCODE_NO_STDLIB_EXTS) && defined(__has_include)
-#  if __has_include(<experimental/any>)
+#if defined(BENCODE_USE_STDLIB_EXTS)
+#  include <experimental/any>
+#  include <experimental/string_view>
+#  define BENCODE_ANY_NS std::experimental
+#  define BENCODE_STRING_VIEW std::experimental::string_view
+#elif !defined(BENCODE_NO_STDLIB_EXTS) && defined(__has_include)
+   // libstdc++'s `any` in the 5.x series is incorrect and breaks clang. See
+   // <https://gcc.gnu.org/ml/gcc-patches/2015-08/msg01249.html>.
+#  if !(defined(__clang__) && !defined(_LIBCPP_VERSION) && \
+        defined(__GLIBCXX__) && __GLIBCXX__ <= 20151204) && \
+      __has_include(<experimental/any>)
 #    include <experimental/any>
 #    define BENCODE_ANY_NS std::experimental
 #  else
