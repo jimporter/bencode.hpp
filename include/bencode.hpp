@@ -14,9 +14,6 @@
 #include <string>
 #include <vector>
 
-// Get _LIBCPP_VERSION to detect libc++.
-#include <ciso646>
-
 // Try to use N4480's any and string_view classes, or fall back to Boost's.
 #if defined(BENCODE_USE_STDLIB_EXTS)
 #  include <experimental/any>
