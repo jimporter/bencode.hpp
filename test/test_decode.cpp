@@ -22,8 +22,9 @@ suite<> test_decode("test decoder", [](auto &_) {
 
   using BENCODE_ANY_NS::any_cast;
 
-  subsuite<std::string, std::istringstream>(_, "decoding", type_only,
-                                            [](auto &_) {
+  subsuite<
+    const char *, std::string, std::istringstream
+  >(_, "decoding", type_only, [](auto &_) {
     using Fixture = fixture_type_t<decltype(_)>;
 
     _.test("integer", []() {
