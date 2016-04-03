@@ -14,24 +14,13 @@
 #include <string>
 #include <vector>
 
-// Try to use N4480's any and string_view classes, or fall back to Boost's.
+#include <boost/variant.hpp>
+
+// Try to use N4480's string_view class, or fall back to Boost's.
 #if defined(BENCODE_USE_STDLIB_EXTS)
-#  include <experimental/any>
 #  include <experimental/string_view>
-#  define BENCODE_ANY_NS std::experimental
 #  define BENCODE_STRING_VIEW std::experimental::string_view
 #elif !defined(BENCODE_NO_STDLIB_EXTS) && defined(__has_include)
-   // libstdc++'s `any` in the 5.x series is incorrect and breaks clang. See
-   // <https://gcc.gnu.org/ml/gcc-patches/2015-08/msg01249.html>.
-#  if !(defined(__clang__) && !defined(_LIBCPP_VERSION) && \
-        defined(__GLIBCXX__) && __GLIBCXX__ <= 20151204) && \
-      __has_include(<experimental/any>)
-#    include <experimental/any>
-#    define BENCODE_ANY_NS std::experimental
-#  else
-#    include <boost/any.hpp>
-#    define BENCODE_ANY_NS boost
-#  endif
 #  if __has_include(<experimental/string_view>)
 #    include <experimental/string_view>
 #    define BENCODE_STRING_VIEW std::experimental::string_view
@@ -40,21 +29,36 @@
 #    define BENCODE_STRING_VIEW boost::string_ref
 #  endif
 #else
-#  include <boost/any.hpp>
 #  include <boost/utility/string_ref.hpp>
-#  define BENCODE_ANY_NS boost
 #  define BENCODE_STRING_VIEW boost::string_ref
 #endif
 
 namespace bencode {
 
-  using string = std::string;
   using integer = long long;
-  using list = std::vector<BENCODE_ANY_NS::any>;
-  using dict = std::map<std::string, BENCODE_ANY_NS::any>;
-
+  using integer_view = integer;
+  using string = std::string;
   using string_view = BENCODE_STRING_VIEW;
-  using dict_view = std::map<BENCODE_STRING_VIEW, BENCODE_ANY_NS::any>;
+
+  using data = boost::make_recursive_variant<
+    integer,
+    string,
+    std::vector<boost::recursive_variant_>,
+    std::map<string, boost::recursive_variant_>
+  >::type;
+
+  using data_view = boost::make_recursive_variant<
+    integer_view,
+    string_view,
+    std::vector<boost::recursive_variant_>,
+    std::map<string_view, boost::recursive_variant_>
+  >::type;
+
+  using list = std::vector<data>;
+  using dict = std::map<string, data>;
+
+  using list_view = std::vector<data_view>;
+  using dict_view = std::map<string_view, data_view>;
 
   enum eof_behavior {
     check_eof,
@@ -62,14 +66,16 @@ namespace bencode {
   };
 
   template<typename T>
-  BENCODE_ANY_NS::any decode(T &begin, T end);
+  data decode(T &begin, T end);
 
   namespace detail {
     template<bool View, typename T>
-    BENCODE_ANY_NS::any decode_data(T &begin, T end);
+    typename std::conditional<View, data_view, data>::type
+    decode_data(T &begin, T end);
 
-    template<typename T>
-    integer decode_int_real(T &begin, T end) {
+    template<bool View, typename T>
+    typename std::conditional<View, integer_view, integer>::type
+    decode_int(T &begin, T end) {
       assert(*begin == 'i');
       ++begin;
 
@@ -90,11 +96,6 @@ namespace bencode {
 
       ++begin;
       return positive ? value : -value;
-    }
-
-    template<bool View, typename T>
-    inline integer decode_int(T &begin, T end) {
-      return decode_int_real(begin, end);
     }
 
     template<bool View>
@@ -164,11 +165,12 @@ namespace bencode {
     }
 
     template<bool View, typename T>
-    list decode_list(T &begin, T end) {
+    typename std::conditional<View, list_view, list>::type
+    decode_list(T &begin, T end) {
       assert(*begin == 'l');
       ++begin;
 
-      list value;
+      typename std::conditional<View, list_view, list>::type value;
       while(begin != end && *begin != 'e') {
         value.push_back(decode_data<View>(begin, end));
       }
@@ -209,9 +211,10 @@ namespace bencode {
     }
 
     template<bool View, typename T>
-    BENCODE_ANY_NS::any decode_data(T &begin, T end) {
+    typename std::conditional<View, data_view, data>::type
+    decode_data(T &begin, T end) {
       if(begin == end)
-        return BENCODE_ANY_NS::any();
+        throw std::invalid_argument("unexpected end of string");
 
       if(*begin == 'i')
         return decode_int<View>(begin, end);
@@ -228,22 +231,21 @@ namespace bencode {
   }
 
   template<typename T>
-  inline BENCODE_ANY_NS::any decode(T &begin, T end) {
+  inline data decode(T &begin, T end) {
     return detail::decode_data<false>(begin, end);
   }
 
   template<typename T>
-  inline BENCODE_ANY_NS::any decode(const T &begin, T end) {
+  inline data decode(const T &begin, T end) {
     T b(begin);
     return detail::decode_data<false>(b, end);
   }
 
-  inline BENCODE_ANY_NS::any decode(const BENCODE_STRING_VIEW &s) {
+  inline data decode(const string_view &s) {
     return decode(s.begin(), s.end());
   }
 
-  inline BENCODE_ANY_NS::any
-  decode(std::istream &s, eof_behavior e = check_eof) {
+  inline data decode(std::istream &s, eof_behavior e = check_eof) {
     std::istreambuf_iterator<char> begin(s), end;
     auto result = decode(begin, end);
     // If we hit EOF, update the parent stream.
@@ -253,158 +255,122 @@ namespace bencode {
   }
 
   template<typename T>
-  inline BENCODE_ANY_NS::any decode_view(T &begin, T end) {
+  inline data_view decode_view(T &begin, T end) {
     return detail::decode_data<true>(begin, end);
   }
 
   template<typename T>
-  inline BENCODE_ANY_NS::any decode_view(const T &begin, T end) {
+  inline data_view decode_view(const T &begin, T end) {
     T b(begin);
     return detail::decode_data<true>(b, end);
   }
 
-  inline BENCODE_ANY_NS::any decode_view(const BENCODE_STRING_VIEW &s) {
+  inline data_view decode_view(const string_view &s) {
     return decode_view(s.begin(), s.end());
   }
 
-  class list_encoder {
-  public:
-    inline list_encoder(std::ostream &os) : os(os) {
-      os.put('l');
-    }
+  namespace detail {
+    class list_encoder {
+    public:
+      inline list_encoder(std::ostream &os) : os(os) {
+        os.put('l');
+      }
 
-    template<typename T>
-    inline list_encoder & add(T &&value);
+      inline ~list_encoder() {
+        os.put('e');
+      }
 
-    inline void end() {
-      os.put('e');
-    }
-  private:
-    std::ostream &os;
-  };
+      template<typename T>
+      inline list_encoder & add(T &&value);
+    private:
+      std::ostream &os;
+    };
 
-  class dict_encoder {
-  public:
-    inline dict_encoder(std::ostream &os) : os(os) {
-      os.put('d');
-    }
+    class dict_encoder {
+    public:
+      inline dict_encoder(std::ostream &os) : os(os) {
+        os.put('d');
+      }
 
-    template<typename T>
-    inline dict_encoder & add(const BENCODE_STRING_VIEW &key, T &&value);
+      inline ~dict_encoder() {
+        os.put('e');
+      }
 
-    inline void end() {
-      os.put('e');
-    }
-  private:
-    std::ostream &os;
-  };
+      template<typename T>
+      inline dict_encoder & add(const string_view &key, T &&value);
+    private:
+      std::ostream &os;
+    };
+  }
 
   // TODO: make these use unformatted output?
   inline void encode(std::ostream &os, integer value) {
     os << "i" << value << "e";
   }
 
-  inline void encode(std::ostream &os, const BENCODE_STRING_VIEW &value) {
+  inline void encode(std::ostream &os, const string_view &value) {
     os << value.size() << ":" << value;
   }
 
   template<typename T>
   void encode(std::ostream &os, const std::vector<T> &value) {
-    list_encoder e(os);
+    detail::list_encoder e(os);
     for(auto &&i : value)
       e.add(i);
-    e.end();
   }
 
   template<typename T>
-  void encode(std::ostream &os, const std::map<std::string, T> &value) {
-    dict_encoder e(os);
+  void encode(std::ostream &os, const std::map<string, T> &value) {
+    detail::dict_encoder e(os);
     for(auto &&i : value)
       e.add(i.first, i.second);
-    e.end();
   }
 
-#ifdef BENCODE_HAS_STRING_VIEW
   template<typename T>
-  void encode(std::ostream &os, const std::map<BENCODE_STRING_VIEW, T> &value) {
-    dict_encoder e(os);
+  void encode(std::ostream &os, const std::map<string_view, T> &value) {
+    detail::dict_encoder e(os);
     for(auto &&i : value)
       e.add(i.first, i.second);
-    e.end();
-  }
-#endif
-
-  // Overload for `any`, but only if the passed-in type is already `any`. Don't
-  // accept an implicit conversion!
-  template<typename T>
-  auto encode(std::ostream &os, const T &value) ->
-  typename std::enable_if<std::is_same<T, BENCODE_ANY_NS::any>::value>::type {
-    using BENCODE_ANY_NS::any_cast;
-    auto &type = value.type();
-
-    if(type == typeid(integer))
-      encode(os, any_cast<integer>(value));
-    else if(type == typeid(string))
-      encode(os, any_cast<string>(value));
-    else if(type == typeid(list))
-      encode(os, any_cast<list>(value));
-    else if(type == typeid(dict))
-      encode(os, any_cast<dict>(value));
-#ifdef BENCODE_HAS_STRING_VIEW
-    else if(type == typeid(string_view))
-      encode(os, any_cast<string_view>(value));
-    else if(type == typeid(dict_view))
-      encode(os, any_cast<dict_view>(value));
-#endif
-    else
-      throw std::invalid_argument("unexpected type");
   }
 
   namespace detail {
-    inline void encode_list_items(list_encoder &) {}
+    class encode_visitor : public boost::static_visitor<> {
+    public:
+      inline encode_visitor(std::ostream &os) : os(os) {}
 
-    template<typename T, typename ...Rest>
-    void encode_list_items(list_encoder &enc, T &&t, Rest &&...rest) {
-      enc.add(std::forward<T>(t));
-      encode_list_items(enc, std::forward<Rest>(rest)...);
+      template<typename T>
+      void operator ()(T &&operand) const {
+        encode(os, std::forward<T>(operand));
+      }
+    private:
+      std::ostream &os;
+    };
+  }
+
+  // Overload for `data` and `data_view`, but only if the passed-in type is
+  // already one of the two. Don't accept an implicit conversion!
+  template<typename T>
+  auto encode(std::ostream &os, const T &value) ->
+  typename std::enable_if<
+    std::is_same<T, data>::value || std::is_same<T, data_view>::value
+  >::type {
+    boost::apply_visitor(detail::encode_visitor(os), value);
+  }
+
+  namespace detail {
+    template<typename T>
+    inline list_encoder & list_encoder::add(T &&value) {
+      encode(os, std::forward<T>(value));
+      return *this;
     }
 
-    inline void encode_dict_items(dict_encoder &) {}
-
-    template<typename Key, typename Value, typename ...Rest>
-    void encode_dict_items(dict_encoder &enc, Key &&key, Value &&value,
-                           Rest &&...rest) {
-      enc.add(std::forward<Key>(key), std::forward<Value>(value));
-      encode_dict_items(enc, std::forward<Rest>(rest)...);
+    template<typename T>
+    inline dict_encoder &
+    dict_encoder::add(const string_view &key, T &&value) {
+      encode(os, key);
+      encode(os, std::forward<T>(value));
+      return *this;
     }
-  }
-
-  template<typename ...T>
-  void encode_list(std::ostream &os, T &&...t) {
-    list_encoder enc(os);
-    detail::encode_list_items(enc, std::forward<T>(t)...);
-    enc.end();
-  }
-
-  template<typename ...T>
-  void encode_dict(std::ostream &os, T &&...t) {
-    dict_encoder enc(os);
-    detail::encode_dict_items(enc, std::forward<T>(t)...);
-    enc.end();
-  }
-
-  template<typename T>
-  inline list_encoder & list_encoder::add(T &&value) {
-    encode(os, std::forward<T>(value));
-    return *this;
-  }
-
-  template<typename T>
-  inline dict_encoder &
-  dict_encoder::add(const BENCODE_STRING_VIEW &key, T &&value) {
-    encode(os, key);
-    encode(os, std::forward<T>(value));
-    return *this;
   }
 
   template<typename T>

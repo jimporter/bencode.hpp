@@ -7,85 +7,47 @@ suite<> test_encode("test encoder", [](auto &_) {
 
   _.test("integer", []() {
     expect(bencode::encode(666), equal_to("i666e"));
+    expect(bencode::encode(bencode::integer(666)), equal_to("i666e"));
   });
 
   _.test("string", []() {
     expect(bencode::encode("foo"), equal_to("3:foo"));
     expect(bencode::encode(std::string("foo")), equal_to("3:foo"));
+    expect(bencode::encode(bencode::string("foo")), equal_to("3:foo"));
   });
 
   _.test("list", []() {
-    std::stringstream ss1;
-    bencode::encode_list(ss1);
-    expect(ss1.str(), equal_to("le"));
-
-    std::stringstream ss2;
-    bencode::encode_list(ss2, 1, "foo", 2);
-    expect(ss2.str(), equal_to("li1e3:fooi2ee"));
+    expect(bencode::encode(bencode::list{}), equal_to("le"));
+    expect(bencode::encode(bencode::list{1, "foo", 2}),
+           equal_to("l" "i1e" "3:foo" "i2e" "e"));
   });
 
   _.test("dict", []() {
-    std::stringstream ss1;
-    bencode::encode_dict(ss1);
-    expect(ss1.str(), equal_to("de"));
-
-    std::stringstream ss2;
-    bencode::encode_dict(ss2,
-      "first", 1,
-      "second", "foo",
-      "third", 2
-    );
-    expect(ss2.str(), equal_to("d5:firsti1e6:second3:foo5:thirdi2ee"));
+    expect(bencode::encode(bencode::dict{}), equal_to("de"));
+    expect(bencode::encode(bencode::dict{
+      {"one", 1},
+      {"two", "foo"},
+      {"three", 2}
+    }), equal_to("d" "3:one" "i1e" "5:three" "i2e" "3:two" "3:foo" "e"));
   });
 
-  _.test("list_encoder", []() {
-    std::stringstream ss;
-    bencode::list_encoder(ss)
-      .add(1).add("foo").add(2)
-      .end();
-    expect(ss.str(), equal_to("li1e3:fooi2ee"));
-  });
-
-  _.test("dict_encoder", []() {
-    std::stringstream ss;
-    bencode::dict_encoder(ss)
-      .add("first", 1).add("second", "foo").add("third", 2)
-      .end();
-    expect(ss.str(), equal_to("d5:firsti1e6:second3:foo5:thirdi2ee"));
-  });
-
-  subsuite<>(_, "any", [](auto &_) {
-    using BENCODE_ANY_NS::any;
-
-    _.test("integer", []() {
-      any value = bencode::integer(666);
-      expect(bencode::encode(value), equal_to("i666e"));
-    });
-
-    _.test("string", []() {
-      any value = bencode::string("foo");
-      expect(bencode::encode(value), equal_to("3:foo"));
-    });
-
-    _.test("list", []() {
-      any value = bencode::list{
-        bencode::integer(1),
-        bencode::string("foo"),
-        bencode::integer(2)
-      };
-      expect(bencode::encode(value), equal_to("li1e3:fooi2ee"));
-    });
-
-    _.test("dict", []() {
-      any value = bencode::dict{
-        { bencode::string("a"), bencode::integer(1) },
-        { bencode::string("b"), bencode::string("foo") },
-        { bencode::string("c"), bencode::integer(2) }
-      };
-      expect(
-        bencode::encode(value), equal_to("d1:ai1e1:b3:foo1:ci2ee")
-      );
-    });
+  _.test("nested", []() {
+    expect(bencode::encode(bencode::dict{
+      {"one", 1},
+      {"two", bencode::list{
+        3, "foo", 4
+      }},
+      {"three", bencode::list{
+        bencode::dict{
+          {"foo", 0},
+          {"bar", 0}
+        }
+      }}
+    }), equal_to("d"
+      "3:one" "i1e"
+      "5:three" "l" "d" "3:bar" "i0e" "3:foo" "i0e" "e" "e"
+      "3:two" "l" "i3e" "3:foo" "i4e" "e"
+    "e"));
   });
 
   subsuite<>(_, "vector", [](auto &_) {
