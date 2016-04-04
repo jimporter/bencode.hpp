@@ -26,6 +26,80 @@ $ ninja install
 However, since bencode.hpp is a single-file, header-only library, you can just
 copy `include/bencode.hpp` to your destination of choice.
 
+## Usage
+
+### Data types
+
+Bencode has four data types: `integer`s, `string`s, `list`s, and `dict`s. These
+correspond to `std::int64_t`, `std::string`, `std::vector<bencode::data>`, and
+`std::map<std::string, bencode::data>`, respectively. Since the data types are
+determined at runtime, these are all stored in a variant type called `data`.
+
+### Decoding
+
+Decoding bencoded data is simple. Just call `decode`, which will return a `data`
+object that you can operate on:
+
+```c++
+auto data = bencode::decode("i666e");
+auto value = boost::get<bencode::integer>(data);
+```
+
+`decode` also has an overload that takes an iterator pair:
+
+```c++
+auto data = bencode::decode(foo.begin(), foo.end());
+```
+
+Finally, you pass an `std::istream` directly to `decode`. By default, this
+overload will set the eof bit on the stream if it reaches the end. However, you
+can override this behavior. This is useful if, for instance, you're reading
+multiple bencoded messages from a pipe:
+
+```c++
+// Defaults to bencode::check_eof.
+auto data = bencode::decode(stream, bencode::no_check_eof);
+```
+
+#### Views
+
+If the buffer holding the bencoded data is stable (i.e. won't change or be
+destroyed until you're done working with the parsed representation), you can
+decode the data as a *view* on the buffer to save memory. This results in all
+parsed strings being nothing more than pointers pointing to slices of your
+buffer. Simply append `_view` to the functions/types to take advantage of this:
+
+```c++
+std::string buf = "3:foo";
+auto data = bencode::decode_view(buf);
+auto value = boost::get<bencode::string_view>(data);
+```
+
+### Encoding
+
+Encoding data is also straightforward:
+
+```c++
+// Encode and store the result in an std::string.
+auto str = bencode::encode(666);
+
+// Encode and output to an std::ostream.
+bencode::encode(std::cout, 666);
+```
+
+You can also construct more-complex data structures:
+
+```c++
+bencode::encode(std::cout, bencode::dict{
+  {"one", 1},
+  {"two", bencode::list{1, "foo", 2},
+  {"three", "3"}
+});
+```
+
+As with encoding, you can use the `_view` types if you know the underlying
+memory will live until the encoding function returns.
+
 ## License
 
 This library is licensed under the BSD 3-Clause license.
