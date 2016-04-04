@@ -31,7 +31,7 @@ copy `include/bencode.hpp` to your destination of choice.
 ### Data types
 
 Bencode has four data types: `integer`s, `string`s, `list`s, and `dict`s. These
-correspond to `std::int64_t`, `std::string`, `std::vector<bencode::data>`, and
+correspond to `long long`, `std::string`, `std::vector<bencode::data>`, and
 `std::map<std::string, bencode::data>`, respectively. Since the data types are
 determined at runtime, these are all stored in a variant type called `data`.
 
