@@ -1,5 +1,7 @@
 # bencode.hpp
 
+[![Travis build status][travis-image]][travis-link]
+
 **bencode.hpp** is a small, header-only C++ library for parsing and generating
 [bencoded](https://en.wikipedia.org/wiki/Bencode) data.
 
@@ -103,3 +105,6 @@ memory will live until the encoding function returns.
 ## License
 
 This library is licensed under the BSD 3-Clause license.
+
+[travis-image]: https://travis-ci.org/jimporter/bencode.hpp.svg?branch=master
+[travis-link]: https://travis-ci.org/jimporter/bencode.hpp
