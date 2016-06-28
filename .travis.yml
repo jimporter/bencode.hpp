@@ -1,0 +1,107 @@
+language: cpp
+sudo: false
+
+matrix:
+  include:
+    - compiler: clang
+      env: COMPILER=clang++-3.6
+      addons:
+        apt:
+          sources: &sources
+            - boost-latest
+            - llvm-toolchain-precise-3.6
+            - llvm-toolchain-precise-3.7
+            - llvm-toolchain-precise-3.8
+            - ubuntu-toolchain-r-test
+          packages:
+            - clang-3.6
+            - libstdc++-5-dev
+            - libboost1.55-dev
+            - libboost-iostreams1.55-dev
+            - libboost-program-options1.55-dev
+            - ninja-build
+            - python-virtualenv
+    - compiler: clang
+      env: COMPILER=clang++-3.7
+      addons:
+        apt:
+          sources: *sources
+          packages:
+            - clang-3.7
+            - libstdc++-5-dev
+            - libboost1.55-dev
+            - libboost-iostreams1.55-dev
+            - libboost-program-options1.55-dev
+            - ninja-build
+            - python-virtualenv
+    - compiler: clang
+      env: COMPILER=clang++-3.8
+      addons:
+        apt:
+          sources: *sources
+          packages:
+            - clang-3.8
+            - libstdc++-5-dev
+            - libboost1.55-dev
+            - libboost-iostreams1.55-dev
+            - libboost-program-options1.55-dev
+            - ninja-build
+            - python-virtualenv
+    - compiler: gcc
+      # GCC doesn't like building in parallel on ninja. No idea why.
+      env: COMPILER=g++-5 BUILD_ARGS="-j1"
+      addons:
+        apt:
+          sources: *sources
+          packages:
+            - g++-5
+            - libboost1.55-dev
+            - libboost-iostreams1.55-dev
+            - libboost-program-options1.55-dev
+            - ninja-build
+            - python-virtualenv
+    - compiler: gcc
+      env: COMPILER=g++-6 BUILD_ARGS="-j1"
+      addons:
+        apt:
+          sources: *sources
+          packages:
+            - g++-6
+            - libboost1.55-dev
+            - libboost-iostreams1.55-dev
+            - libboost-program-options1.55-dev
+            - ninja-build
+            - python-virtualenv
+    - os: osx
+      osx_image: xcode7.2
+      env: COMPILER=clang++ BACKEND=ninja
+
+cache:
+  apt: true
+
+install:
+  - |
+    if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
+      brew update
+      brew install ninja
+      brew install python
+      # For some reason, Homebrew's Python thinks msbuild will get installed by
+      # bfg9000, and so is grumpy about not having lxml.
+      pip install lxml
+    else
+      virtualenv env && source env/bin/activate
+      pip install -U setuptools
+    fi
+  - pip install bfg9000
+  - |
+    git clone https://github.com/jimporter/mettle.git
+    pushd mettle
+    CXX=${COMPILER} CXXFLAGS="-I`pwd`/../include" 9k build --backend=ninja --prefix=$HOME
+    cd build
+    ninja install
+    popd
+script:
+  - |
+    CXX=${COMPILER} CXXFLAGS="-Wall -Wextra -pedantic -I$HOME/include" LIBRARY_PATH="$HOME/lib" 9k build --backend=ninja
+    cd build
+    ninja test
