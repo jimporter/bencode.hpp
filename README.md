@@ -10,7 +10,7 @@
 This library requires a C++11 compiler and [Boost](http://www.boost.org/)
 1.23+. If your standard library includes the [Library Fundamentals
 TS](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4480.html)
-(specifically the `string_view` type), bencode.hpp will used that as well. In
+(specifically the `string_view` type), bencode.hpp will use that as well. In
 addition, the tests require a C++14 compiler and
 [mettle](https://jimporter.github.io/mettle/).
 
