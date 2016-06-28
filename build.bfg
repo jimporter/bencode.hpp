@@ -2,10 +2,15 @@
 
 from os.path import splitext
 
-if env.compiler('c++').flavor == 'cc':
-    global_options(['-std=c++1y'], lang='c++')
+bfg9000_required_version('>=0.2.0')
+project('bencode_hpp', version='1.0pre')
 
-includes = header_directory('include')
+if env.builder('c++').flavor == 'msvc':
+    global_options(['/EHsc'], lang='c++')
+else:
+    global_options(['-std=c++14'], lang='c++')
+
+includes = header_directory('include', include='*.hpp')
 
 install(includes)
 
@@ -20,3 +25,5 @@ for src in find_files('test', '*.cpp'):
         include=includes,
         packages=[boost, libmettle]
     ), driver=mettle)
+
+extra_dist(files=['README.md', 'LICENSE'])
