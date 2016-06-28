@@ -20,12 +20,13 @@ bencode.hpp uses [bfg9000](https://jimporter.github.io/bfg9000/) to build and
 test itself. Building with `bfg9000` is straightforward. Just run the following:
 
 ```sh
-$ bfg9000 /path/to/bencode build
-$ cd build
+$ /path/to/bencode.hpp/
+$ 9k build/
+$ cd build/
 $ ninja install
 ```
 
-However, since bencode.hpp is a single-file, header-only library, you can just
+*However*, since bencode.hpp is a single-file, header-only library, you can just
 copy `include/bencode.hpp` to your destination of choice.
 
 ## Usage
