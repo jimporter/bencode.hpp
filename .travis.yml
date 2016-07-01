@@ -79,7 +79,7 @@ matrix:
 cache:
   apt: true
 
-install:
+before_install:
   - |
     if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
       brew update
@@ -89,9 +89,11 @@ install:
       # bfg9000, and so is grumpy about not having lxml.
       pip install lxml
     else
+      set -e
       virtualenv env && source env/bin/activate
       pip install -U setuptools
     fi
+install:
   - pip install bfg9000
   - |
     git clone https://github.com/jimporter/mettle.git
