@@ -1,6 +1,8 @@
 # bencode.hpp
 
 [![Travis build status][travis-image]][travis-link]
+[![Appveyor uild status][appveyor-image]][appveyor-link]
+
 
 **bencode.hpp** is a small, header-only C++ library for parsing and generating
 [bencoded](https://en.wikipedia.org/wiki/Bencode) data.
@@ -105,7 +107,9 @@ memory will live until the encoding function returns.
 
 ## License
 
-This library is licensed under the BSD 3-Clause license.
+This library is licensed under the BSD 3-Clause [license](LICENSE).
 
 [travis-image]: https://travis-ci.org/jimporter/bencode.hpp.svg?branch=master
 [travis-link]: https://travis-ci.org/jimporter/bencode.hpp
+[appveyor-image]: https://ci.appveyor.com/api/projects/status/sycb8ugc3vo3g1g9?svg=true
+[appveyor-link]: https://ci.appveyor.com/project/jimporter/bencode-hpp
