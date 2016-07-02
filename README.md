@@ -23,7 +23,7 @@ bencode.hpp uses [bfg9000](https://jimporter.github.io/bfg9000/) to build and
 test itself. Building with `bfg9000` is straightforward. Just run the following:
 
 ```sh
-$ /path/to/bencode.hpp/
+$ cd /path/to/bencode.hpp/
 $ 9k build/
 $ cd build/
 $ ninja install
