@@ -35,7 +35,7 @@ copy `include/bencode.hpp` to your destination of choice.
 
 ### Data types
 
-Bencode has four data types: `integer`s, `string`s, `list`s, and `dict`s. These
+Bencode has four data types: `integer`, `string`, `list`s, and `dict`. These
 correspond to `long long`, `std::string`, `std::vector<bencode::data>`, and
 `std::map<std::string, bencode::data>`, respectively. Since the data types are
 determined at runtime, these are all stored in a variant type called `data`.
@@ -56,7 +56,7 @@ auto value = boost::get<bencode::integer>(data);
 auto data = bencode::decode(foo.begin(), foo.end());
 ```
 
-Finally, you pass an `std::istream` directly to `decode`. By default, this
+Finally, you can pass an `std::istream` directly to `decode`. By default, this
 overload will set the eof bit on the stream if it reaches the end. However, you
 can override this behavior. This is useful if, for instance, you're reading
 multiple bencoded messages from a pipe:
@@ -102,7 +102,7 @@ bencode::encode(std::cout, bencode::dict{
 });
 ```
 
-As with encoding, you can use the `_view` types if you know the underlying
+As with encoding, you can use the `*_view` types if you know the underlying
 memory will live until the encoding function returns.
 
 ## License
