@@ -1,5 +1,6 @@
 # bencode.hpp
 
+[![Latest release][release-image]][release-link]
 [![Travis build status][travis-image]][travis-link]
 [![Appveyor uild status][appveyor-image]][appveyor-link]
 
@@ -109,6 +110,8 @@ memory will live until the encoding function returns.
 
 This library is licensed under the BSD 3-Clause [license](LICENSE).
 
+[release-image]: https://img.shields.io/github/release/jimporter/bencode.hpp.svg
+[release-link]: https://github.com/jimporter/bencode.hpp/releases/latest
 [travis-image]: https://travis-ci.org/jimporter/bencode.hpp.svg?branch=master
 [travis-link]: https://travis-ci.org/jimporter/bencode.hpp
 [appveyor-image]: https://ci.appveyor.com/api/projects/status/sycb8ugc3vo3g1g9?svg=true
