@@ -3,7 +3,7 @@
 from os.path import splitext
 
 bfg9000_required_version('>=0.2.0')
-project('bencode_hpp', version='0.1')
+project('bencode_hpp', version='0.2pre')
 
 if env.builder('c++').flavor == 'msvc':
     global_options(['/EHsc'], lang='c++')
