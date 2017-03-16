@@ -73,7 +73,7 @@ matrix:
             - ninja-build
             - python-virtualenv
     - os: osx
-      osx_image: xcode7.2
+      osx_image: xcode7.3
       env: COMPILER=clang++ BACKEND=ninja
 
 cache:
@@ -91,10 +91,9 @@ before_install:
     else
       set -e
       virtualenv env && source env/bin/activate
-      pip install -U setuptools
     fi
-install:
   - pip install bfg9000
+install:
   - |
     git clone https://github.com/jimporter/mettle.git
     pushd mettle
