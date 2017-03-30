@@ -136,15 +136,18 @@ before_install:
     fi
   - ${PIP} install bfg9000
 install:
-  - |
-    git clone https://github.com/jimporter/mettle.git
-    pushd mettle
-    CXX=${COMPILER} CXXFLAGS="-I`pwd`/../include" 9k build --backend=ninja --prefix=$HOME
-    cd build
-    ninja install
-    popd
+  # Build and install the lastest master revision of mettle.
+  - git clone https://github.com/jimporter/mettle.git
+  - pushd mettle
+  - >
+    CXX=${COMPILER} CPATH="`pwd`/../include" 9k build --backend=ninja
+    --prefix=$HOME
+  - cd build
+  - ninja install
+  - popd
 script:
-  - |
-    CXX=${COMPILER} CXXFLAGS="-Wall -Wextra -pedantic -I$HOME/include" LIBRARY_PATH="$HOME/lib" 9k build --backend=ninja
-    cd build
-    ninja test
+  - >
+    CXX=${COMPILER} CXXFLAGS="-Wall -Wextra -pedantic -I$HOME/include"
+    LIBRARY_PATH="$HOME/lib" 9k build --backend=ninja
+  - cd build
+  - ninja test

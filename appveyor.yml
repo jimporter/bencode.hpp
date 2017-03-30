@@ -2,20 +2,27 @@ build: false
 version: "{branch}-{build}"
 
 environment:
-  BOOST_INCLUDEDIR: C:\Libraries\boost_1_59_0
-  BOOST_LIBRARYDIR: C:\Libraries\boost_1_59_0\lib32-msvc-14.0
-  PYTHON: C:\Python27
+  VS: C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat
+  BOOST_INCLUDEDIR: C:\Libraries\boost_1_60_0
+  BOOST_LIBRARYDIR: C:\Libraries\boost_1_60_0\lib32-msvc-14.0
+  PYTHON_PATH: C:\Python27
 
-  matrix:
-    - VS: C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat
-      BOOST_INCLUDEDIR: C:\Libraries\boost_1_59_0
-      BOOST_LIBRARYDIR: C:\Libraries\boost_1_59_0\lib32-msvc-14.0
+cache:
+  - C:\ProgramData\chocolatey\bin -> appveyor.yml
+  - C:\ProgramData\chocolatey\lib -> appveyor.yml
 
 install:
-  - call "%VS%" x86
-  - set PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
-  - pip install bfg9000
   - cinst ninja
+  - call "%VS%" x86
+  - set PATH=%PYTHON_PATH%;%PYTHON_PATH%\Scripts;%PATH%
+
+  # Install the latest master revision of bfg9000.
+  - git clone https://github.com/jimporter/bfg9000.git
+  - cd bfg9000
+  - python setup.py install
+  - cd ..
+
+  # Install the latest master revision of mettle.
   - git clone https://github.com/jimporter/mettle.git
   - cd mettle
   - copy ..\include\bencode.hpp include\bencode.hpp
