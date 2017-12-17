@@ -1,6 +1,11 @@
 language: cpp
 sudo: false
 
+env:
+  global:
+    - PYTHON=python
+    - PIP=pip
+
 matrix:
   include:
     - compiler: clang
@@ -73,26 +78,22 @@ matrix:
             - ninja-build
             - python-virtualenv
     - os: osx
-      osx_image: xcode7.3
-      env: COMPILER=clang++ BACKEND=ninja
+      env: PYTHON=python2 PIP=pip2 COMPILER=clang++ BACKEND=ninja
 
 cache:
   apt: true
 
 before_install:
+  - set -e
   - |
     if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
+      shell_session_update() { :; }
       brew update
-      brew install ninja
-      brew install python
-      # For some reason, Homebrew's Python thinks msbuild will get installed by
-      # bfg9000, and so is grumpy about not having lxml.
-      pip install lxml
+      brew install ${PYTHON} ninja
     else
-      set -e
       virtualenv env && source env/bin/activate
     fi
-  - pip install bfg9000
+  - ${PIP} install bfg9000
 install:
   - |
     git clone https://github.com/jimporter/mettle.git
