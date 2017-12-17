@@ -34,6 +34,7 @@ matrix:
             - *packages
             - clang-3.6
             - libstdc++-5-dev
+
     - compiler: clang
       env: COMPILER=clang++-3.7
       addons:
@@ -45,6 +46,7 @@ matrix:
             - *packages
             - clang-3.7
             - libstdc++-5-dev
+
     - compiler: clang
       env: COMPILER=clang++-3.8
       addons:
@@ -56,6 +58,43 @@ matrix:
             - *packages
             - clang-3.8
             - libstdc++-5-dev
+
+    - compiler: clang
+      env: COMPILER=clang++-3.9
+      addons:
+        apt:
+          sources:
+            - *sources
+            - llvm-toolchain-precise-3.9
+          packages:
+            - *packages
+            - clang-3.9
+            - libstdc++-5-dev
+
+    - compiler: clang
+      env: COMPILER=clang++-4.0
+      addons:
+        apt:
+          sources:
+            - *sources
+            - llvm-toolchain-trusty-4.0
+          packages:
+            - *packages
+            - clang-4.0
+            - libstdc++-5-dev
+
+    - compiler: clang
+      env: COMPILER=clang++-5.0
+      addons:
+        apt:
+          sources:
+            - *sources
+            - llvm-toolchain-trusty-5.0
+          packages:
+            - *packages
+            - clang-5.0
+            - libstdc++-5-dev
+
     - compiler: gcc
       env: COMPILER=g++-5
       addons:
@@ -64,6 +103,7 @@ matrix:
           packages:
             - *packages
             - g++-5
+
     - compiler: gcc
       env: COMPILER=g++-6
       addons:
@@ -72,6 +112,16 @@ matrix:
           packages:
             - *packages
             - g++-6
+
+    - compiler: gcc
+      env: COMPILER=g++-7
+      addons:
+        apt:
+          sources: *sources
+          packages:
+            - *packages
+            - g++-7
+
     - os: osx
       env: PYTHON=python2 PIP=pip2 COMPILER=clang++ BACKEND=ninja
 
