@@ -6,52 +6,56 @@ env:
     - PYTHON=python
     - PIP=pip
 
+addons:
+  apt:
+    sources: &sources
+      - boost-latest
+      - ubuntu-toolchain-r-test
+    packages: &packages
+      - libboost1.55-dev
+      - libboost-iostreams1.55-dev
+      - libboost-program-options1.55-dev
+      - ninja-build
+      - python-virtualenv
+
+cache:
+  apt: true
+
 matrix:
   include:
     - compiler: clang
       env: COMPILER=clang++-3.6
       addons:
         apt:
-          sources: &sources
-            - boost-latest
+          sources:
+            - *sources
             - llvm-toolchain-precise-3.6
-            - llvm-toolchain-precise-3.7
-            - llvm-toolchain-precise-3.8
-            - ubuntu-toolchain-r-test
           packages:
+            - *packages
             - clang-3.6
             - libstdc++-5-dev
-            - libboost1.55-dev
-            - libboost-iostreams1.55-dev
-            - libboost-program-options1.55-dev
-            - ninja-build
-            - python-virtualenv
     - compiler: clang
       env: COMPILER=clang++-3.7
       addons:
         apt:
-          sources: *sources
+          sources:
+            - *sources
+            - llvm-toolchain-precise-3.7
           packages:
+            - *packages
             - clang-3.7
             - libstdc++-5-dev
-            - libboost1.55-dev
-            - libboost-iostreams1.55-dev
-            - libboost-program-options1.55-dev
-            - ninja-build
-            - python-virtualenv
     - compiler: clang
       env: COMPILER=clang++-3.8
       addons:
         apt:
-          sources: *sources
+          sources:
+            - *sources
+            - llvm-toolchain-precise-3.8
           packages:
+            - *packages
             - clang-3.8
             - libstdc++-5-dev
-            - libboost1.55-dev
-            - libboost-iostreams1.55-dev
-            - libboost-program-options1.55-dev
-            - ninja-build
-            - python-virtualenv
     - compiler: gcc
       # GCC doesn't like building in parallel on ninja. No idea why.
       env: COMPILER=g++-5 BUILD_ARGS="-j1"
@@ -59,38 +63,27 @@ matrix:
         apt:
           sources: *sources
           packages:
+            - *packages
             - g++-5
-            - libboost1.55-dev
-            - libboost-iostreams1.55-dev
-            - libboost-program-options1.55-dev
-            - ninja-build
-            - python-virtualenv
     - compiler: gcc
       env: COMPILER=g++-6 BUILD_ARGS="-j1"
       addons:
         apt:
           sources: *sources
           packages:
+            - *packages
             - g++-6
-            - libboost1.55-dev
-            - libboost-iostreams1.55-dev
-            - libboost-program-options1.55-dev
-            - ninja-build
-            - python-virtualenv
     - os: osx
       env: PYTHON=python2 PIP=pip2 COMPILER=clang++ BACKEND=ninja
 
-cache:
-  apt: true
-
 before_install:
-  - set -e
   - |
     if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
       shell_session_update() { :; }
       brew update
       brew install ${PYTHON} ninja
     else
+      set -e
       virtualenv env && source env/bin/activate
     fi
   - ${PIP} install bfg9000
