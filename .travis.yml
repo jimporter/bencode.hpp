@@ -3,7 +3,6 @@ sudo: false
 
 env:
   global:
-    - PYTHON=python
     - PIP=pip
 
 addons:
@@ -123,14 +122,14 @@ matrix:
             - g++-7
 
     - os: osx
-      env: PYTHON=python2 PIP=pip2 COMPILER=clang++ BACKEND=ninja
+      env: PIP=pip2 COMPILER=clang++ BACKEND=ninja
 
 before_install:
   - |
     if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
       shell_session_update() { :; }
       brew update
-      brew install ${PYTHON} ninja
+      brew install ninja
     else
       set -e
       virtualenv env && source env/bin/activate
