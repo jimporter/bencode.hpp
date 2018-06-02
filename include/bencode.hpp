@@ -16,21 +16,33 @@
 
 #include <boost/variant.hpp>
 
-// Try to use N4480's string_view class, or fall back to Boost's.
-#if defined(BENCODE_USE_STDLIB_EXTS)
-#  include <experimental/string_view>
-#  define BENCODE_STRING_VIEW std::experimental::string_view
-#elif !defined(BENCODE_NO_STDLIB_EXTS) && defined(__has_include)
-#  if __has_include(<experimental/string_view>)
+// Try to use std::string_view, N4480's version, or fall back to Boost's.
+
+#ifdef __has_include
+#  if __has_include(<string_view>) && __cplusplus >= 201703L
+#    include <string_view>
+#    define BENCODE_STRING_VIEW std::string_view
+#  elif __has_include(<experimental/string_view>) && \
+        !defined(BENCODE_NO_STDLIB_EXTS)
+#    include <experimental/string_view>
+#    define BENCODE_STRING_VIEW std::experimental::string_view
+#  endif
+#endif
+
+#ifndef BENCODE_STRING_VIEW
+#  ifdef BENCODE_USE_STDLIB_EXTS
 #    include <experimental/string_view>
 #    define BENCODE_STRING_VIEW std::experimental::string_view
 #  else
-#    include <boost/utility/string_ref.hpp>
-#    define BENCODE_STRING_VIEW boost::string_ref
+#    include <boost/version.hpp>
+#    if BOOST_VERSION >= 106100
+#      include <boost/utility/string_view.hpp>
+#      define BENCODE_STRING_VIEW boost::string_view
+#    else
+#      include <boost/utility/string_ref.hpp>
+#      define BENCODE_STRING_VIEW boost::string_ref
+#    endif
 #  endif
-#else
-#  include <boost/utility/string_ref.hpp>
-#  define BENCODE_STRING_VIEW boost::string_ref
 #endif
 
 namespace bencode {

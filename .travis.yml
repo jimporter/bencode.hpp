@@ -114,7 +114,7 @@ matrix:
 
     - compiler: gcc
       env: COMPILER=g++-7
-      addons:
+      addons: &gcc-7
         apt:
           sources: *sources
           packages:
@@ -123,6 +123,24 @@ matrix:
 
     - os: osx
       env: PIP=pip2 COMPILER=clang++ BACKEND=ninja
+
+    # C++17 builds
+
+    - compiler: clang
+      env: EXTRAOPTS="--std=c++17" COMPILER=clang++-5.0
+      addons:
+        apt:
+          sources:
+            - *sources
+            - llvm-toolchain-trusty-5.0
+          packages:
+            - *packages
+            - clang-5.0
+            - libstdc++-7-dev
+
+    - compiler: gcc
+      env: EXTRAOPTS="--std=c++17" COMPILER=g++-7
+      addons: *gcc-7
 
 before_install:
   - |

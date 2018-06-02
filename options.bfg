@@ -1,0 +1,3 @@
+# -*- python -*-
+
+argument('std', default='c++14', help='set the C++ standard to compile with')
