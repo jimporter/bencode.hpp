@@ -106,8 +106,8 @@ suite<> test_decode("test decoder", [](auto &_) {
 
       auto value = bencode::decode_view(data);
       auto str = boost::get<bencode::string_view>(value);
-      expect(str.begin(), in_range);
-      expect(str.end(), in_range);
+      expect(&*str.begin(), in_range);
+      expect(&*str.end(), in_range);
       expect(str, equal_to("spam"));
     });
 
@@ -128,8 +128,8 @@ suite<> test_decode("test decoder", [](auto &_) {
       auto value = bencode::decode_view(data);
       auto dict = boost::get<bencode::dict_view>(value);
       auto str = dict.find("spam")->first;
-      expect(str.begin(), in_range);
-      expect(str.end(), in_range);
+      expect(&*str.begin(), in_range);
+      expect(&*str.end(), in_range);
       expect(str, equal_to("spam"));
 
       expect(boost::get<bencode::integer_view>(dict["spam"]), equal_to(666));

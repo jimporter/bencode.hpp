@@ -154,7 +154,7 @@ namespace bencode {
         if(std::distance(begin, end) < static_cast<std::ptrdiff_t>(len))
           throw std::invalid_argument("unexpected end of string");
 
-        string_view value(begin, len);
+        string_view value(&*begin, len);
         std::advance(begin, len);
         return value;
       }
