@@ -2,7 +2,7 @@
 
 from os.path import splitext
 
-bfg9000_required_version('>=0.3.0.dev0')
+bfg9000_required_version('>=0.3.0')
 project('bencode_hpp', version='0.2pre')
 
 if env.builder('c++').flavor == 'msvc':
@@ -15,7 +15,7 @@ includes = header_directory('include', include='*.hpp')
 install(includes)
 
 boost = boost_package(version='>=1.23')
-libmettle = system_package('mettle')
+libmettle = package('mettle')
 mettle = test_driver(['mettle', '--output=verbose'])
 
 for src in find_files('test', '*.cpp'):
