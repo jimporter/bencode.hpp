@@ -46,7 +46,8 @@ install:
 test_script:
   - set PATH=C:\mettle;%PATH%
   - set LIBRARY_PATH=C:\mettle
-  - set CPPFLAGS=/WX /IC:\mettle
+  - set CPATH=C:\mettle
+  - set CPPFLAGS=/WX
   - 9k build --backend=ninja %EXTRAOPTS%
   - cd build
   - ninja test

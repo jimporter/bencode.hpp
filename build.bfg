@@ -15,7 +15,7 @@ includes = header_directory('include', include='*.hpp')
 install(includes)
 
 boost = boost_package(version='>=1.23')
-libmettle = package('mettle')
+libmettle = package('mettle', headers=['mettle.hpp'])
 mettle = test_driver(['mettle', '--output=verbose'])
 
 for src in find_files('test', '*.cpp'):

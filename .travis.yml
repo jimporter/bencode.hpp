@@ -165,7 +165,7 @@ install:
   - popd
 script:
   - >
-    CXX=${COMPILER} CXXFLAGS="-Wall -Wextra -pedantic -I$HOME/include"
+    CXX=${COMPILER} CPATH="$HOME/include" CXXFLAGS="-Wall -Wextra -pedantic"
     LIBRARY_PATH="$HOME/lib" 9k build --backend=ninja
   - cd build
   - ninja test
