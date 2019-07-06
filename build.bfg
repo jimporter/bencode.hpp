@@ -2,28 +2,30 @@
 
 from os.path import splitext
 
-bfg9000_required_version('>=0.3.0')
+bfg9000_required_version('>=0.4.0')
 project('bencode_hpp', version='0.2pre')
 
-if env.builder('c++').flavor == 'msvc':
-    global_options(['/EHsc', '/std:{}'.format(argv.std)], lang='c++')
-else:
-    global_options(['-std={}'.format(argv.std)], lang='c++')
+global_options([opts.std(argv.std)], lang='c++')
 
 includes = header_directory('include', include='*.hpp')
 
 install(includes)
 
+test_files = find_files('test', '*.cpp')
 boost = boost_package(version='>=1.23')
-libmettle = package('mettle', headers=['mettle.hpp'])
-mettle = test_driver(['mettle', '--output=verbose'])
 
-for src in find_files('test', '*.cpp'):
-    test(executable(
-        splitext(src)[0],
-        files=src,
-        includes=includes,
-        packages=[boost, libmettle]
-    ), driver=mettle)
+try:
+    libmettle = package('mettle', headers=['mettle.hpp'])
+    mettle = test_driver(['mettle', '--output=verbose'])
+
+    for src in test_files:
+        test(executable(
+            splitext(src)[0],
+            files=src,
+            includes=includes,
+            packages=[boost, libmettle]
+        ), driver=mettle)
+except PackageResolutionError:
+    warning('mettle not found; tests disabled')
 
 extra_dist(files=['README.md', 'LICENSE'])
