@@ -3,7 +3,7 @@
 from os.path import splitext
 
 bfg9000_required_version('>=0.4.0')
-project('bencode_hpp', version='0.2pre')
+project('bencode_hpp', version='0.2-dev')
 
 global_options([opts.std(argv.std)], lang='c++')
 
