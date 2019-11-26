@@ -2,25 +2,23 @@
 
 [![Latest release][release-image]][release-link]
 [![Travis build status][travis-image]][travis-link]
-[![Appveyor uild status][appveyor-image]][appveyor-link]
+[![Appveyor build status][appveyor-image]][appveyor-link]
 
 
 **bencode.hpp** is a small, header-only C++ library for parsing and generating
-[bencoded](https://en.wikipedia.org/wiki/Bencode) data.
+[bencoded][wikipedia] data.
 
 ## Requirements
 
-This library requires a C++11 compiler and [Boost](http://www.boost.org/)
-1.23+. If your standard library includes the [Library Fundamentals
-TS](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4480.html)
-(specifically the `string_view` type), bencode.hpp will use that as well. In
-addition, the tests require a C++14 compiler and
-[mettle](https://jimporter.github.io/mettle/).
+This library requires a C++11 compiler and [Boost][boost] 1.23+. If your
+standard library supports `string_view`, (either via C++17 or the [Library
+Fundamentals TS][library-fundamentals]), bencode.hpp will use that as well. In
+addition, the tests require a C++14 compiler and [mettle][mettle].
 
 ## Installation
 
-bencode.hpp uses [bfg9000](https://jimporter.github.io/bfg9000/) to build and
-test itself. Building with `bfg9000` is straightforward. Just run the following:
+bencode.hpp uses [bfg9000][bfg9000] to build and test itself. Building with
+`bfg9000` is straightforward. Just run the following:
 
 ```sh
 $ cd /path/to/bencode.hpp/
@@ -30,7 +28,8 @@ $ ninja install
 ```
 
 *However*, since bencode.hpp is a single-file, header-only library, you can just
-copy `include/bencode.hpp` to your destination of choice.
+copy `include/bencode.hpp` to your destination of choice. (However, doing this
+won't generate a `bencodehpp.pc` file for `pkg-config` to use.)
 
 ## Usage
 
@@ -116,3 +115,9 @@ This library is licensed under the BSD 3-Clause [license](LICENSE).
 [travis-link]: https://travis-ci.org/jimporter/bencode.hpp
 [appveyor-image]: https://ci.appveyor.com/api/projects/status/sycb8ugc3vo3g1g9?svg=true
 [appveyor-link]: https://ci.appveyor.com/project/jimporter/bencode-hpp/branch/master
+
+[wikipedia]: https://en.wikipedia.org/wiki/Bencode
+[boost]: https://www.boost.org/
+[library-fundamentals]: http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4480.html
+[mettle]: https://jimporter.github.io/mettle/
+[bfg9000]: https://jimporter.github.io/bfg9000/
