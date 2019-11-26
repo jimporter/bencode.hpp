@@ -27,4 +27,4 @@ except PackageResolutionError:
     warning('mettle not found; tests disabled')
 
 pkg_config()
-extra_dist(files=['README.md', 'LICENSE'])
+extra_dist(files=['README.md', 'CHANGES.md', 'LICENSE'])
