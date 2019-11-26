@@ -115,4 +115,4 @@ This library is licensed under the BSD 3-Clause [license](LICENSE).
 [travis-image]: https://travis-ci.org/jimporter/bencode.hpp.svg?branch=master
 [travis-link]: https://travis-ci.org/jimporter/bencode.hpp
 [appveyor-image]: https://ci.appveyor.com/api/projects/status/sycb8ugc3vo3g1g9?svg=true
-[appveyor-link]: https://ci.appveyor.com/project/jimporter/bencode-hpp
+[appveyor-link]: https://ci.appveyor.com/project/jimporter/bencode-hpp/branch/master
