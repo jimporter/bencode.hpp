@@ -17,8 +17,9 @@ addition, the tests require a C++14 compiler and [mettle][mettle].
 
 ## Installation
 
-bencode.hpp uses [bfg9000][bfg9000] to build and test itself. Building with
-`bfg9000` is straightforward. Just run the following:
+If you're using Ubuntu (or a similar distro), you can install bencode from the
+following PPA: [ppa:jimporter/stable][ppa]. If you're not using Ubuntu, you can
+also build from source using [bfg9000][bfg9000]. Just run the following:
 
 ```sh
 $ cd /path/to/bencode.hpp/
@@ -120,4 +121,5 @@ This library is licensed under the [BSD 3-Clause license](LICENSE).
 [boost]: https://www.boost.org/
 [library-fundamentals]: http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4480.html
 [mettle]: https://jimporter.github.io/mettle/
+[ppa]: https://launchpad.net/~jimporter/+archive/ubuntu/stable
 [bfg9000]: https://jimporter.github.io/bfg9000/
