@@ -28,7 +28,7 @@ $ ninja install
 ```
 
 *However*, since bencode.hpp is a single-file, header-only library, you can just
-copy `include/bencode.hpp` to your destination of choice. (However, doing this
+copy `include/bencode.hpp` to your destination of choice. (Note that doing this
 won't generate a `bencodehpp.pc` file for `pkg-config` to use.)
 
 ## Usage
