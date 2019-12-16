@@ -1,3 +1,3 @@
 # -*- python -*-
 
-argument('std', default='c++14', help='set the C++ standard to compile with')
+argument('std', default='c++17', help='set the C++ standard to compile with')
