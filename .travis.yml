@@ -4,8 +4,8 @@ dist: xenial
 env:
   global:
     - COMMONFLAGS="-Wall -Wextra -pedantic -Werror"
-    - PYTHON=python
-    - PIP=pip
+    - PYTHON=python3
+    - PIP=pip3
 
 addons:
   apt:
@@ -107,7 +107,7 @@ matrix:
 
     - os: osx
       osx_image: xcode10.3
-      env: PYTHON=python2 PIP=pip2 COMPILER=clang++
+      env: PYTHON=python3 PIP=pip3 COMPILER=clang++
 
     # C++20 builds
 
