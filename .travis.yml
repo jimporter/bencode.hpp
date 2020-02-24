@@ -11,6 +11,11 @@ addons:
   apt:
     sources: &sources
       - ubuntu-toolchain-r-test
+      - llvm-toolchain-xenial-6.0
+      - llvm-toolchain-xenial-7
+      - llvm-toolchain-xenial-8
+      - sourceline: 'deb https://apt.llvm.org/xenial/ llvm-toolchain-xenial-9 main'
+        key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
     packages: &packages
       - libboost-dev
       - libboost-iostreams-dev
@@ -33,9 +38,7 @@ matrix:
       env: COMPILER=clang++-6.0
       addons:
         apt:
-          sources:
-            - *sources
-            - llvm-toolchain-xenial-6.0
+          sources: *sources
           packages:
             - *packages
             - clang-6.0
@@ -44,9 +47,7 @@ matrix:
       env: COMPILER=clang++-7
       addons:
         apt:
-          sources:
-            - *sources
-            - llvm-toolchain-xenial-7
+          sources: *sources
           packages:
             - *packages
             - clang-7
@@ -55,9 +56,7 @@ matrix:
       env: COMPILER=clang++-8
       addons:
         apt:
-          sources:
-            - *sources
-            - llvm-toolchain-xenial-8
+          sources: *sources
           packages:
             - *packages
             - clang-8
@@ -66,10 +65,7 @@ matrix:
       env: COMPILER=clang++-9
       addons: &clang-9
         apt:
-          sources: &clang-9-sources
-            - *sources
-            - sourceline: 'deb https://apt.llvm.org/xenial/ llvm-toolchain-xenial-9 main'
-              key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
+          sources: *sources
           packages:
             - *packages
             - clang-9
