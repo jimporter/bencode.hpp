@@ -1,15 +1,15 @@
 # -*- python -*-
 
-bfg9000_required_version('>=0.5.0')
+bfg9000_required_version('>=0.6.0')
 project('bencodehpp', version='0.3-dev')
 
 global_options([opts.std(argv.std)], lang='c++')
 
-includes = header_directory('include', include='*.hpp')
+includes = header_directory('include', include='**/*.hpp')
 
 install(includes)
 
-test_files = find_paths('test', '*.cpp')
+test_files = find_paths('test/**/*.cpp')
 boost = boost_package(version='>=1.23')
 
 try:
@@ -26,5 +26,5 @@ try:
 except PackageResolutionError:
     warning('mettle not found; tests disabled')
 
-pkg_config()
+pkg_config(auto_fill=True)
 extra_dist(files=['README.md', 'CHANGES.md', 'LICENSE'])
