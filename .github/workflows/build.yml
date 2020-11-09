@@ -1,0 +1,139 @@
+name: build
+on:
+  pull_request:
+  push:
+  schedule:
+  - cron: '0 0 1 * *'
+
+env:
+  COMMONFLAGS: '-Wall -Wextra -pedantic -Werror'
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          # GCC builds
+          - {os: ubuntu-latest, compiler: gcc,   version:  '7',
+             flags: '-Wsuggest-override'}
+          - {os: ubuntu-latest, compiler: gcc,   version:  '8',
+             flags: '-Wsuggest-override'}
+          - {os: ubuntu-latest, compiler: gcc,   version:  '9',
+             flags: '-Wsuggest-override'}
+          - {os: ubuntu-latest, compiler: gcc,   version: '10',
+             flags: '-Wsuggest-override'}
+
+          # Clang builds
+          - {os: ubuntu-latest, compiler: clang, version:  '6.0'}
+          - {os: ubuntu-latest, compiler: clang, version:  '7'}
+          - {os: ubuntu-latest, compiler: clang, version:  '8'}
+          - {os: ubuntu-latest, compiler: clang, version:  '9'}
+          - {os: ubuntu-latest, compiler: clang, version:  '10'}
+
+          # Windows builds
+          - {os: windows-latest, version: '14.1', boost: '1_69_0'}
+          - {os: windows-latest, version: '14.2', boost: '1_72_0'}
+
+          # macOS builds
+          - {os: macos-latest}
+
+          # C++20 builds
+          - {os: ubuntu-latest, compiler: gcc,   version: '10',
+             flags: '--std=c++2a -Wsuggest-override'}
+          - {os: ubuntu-latest, compiler: clang, version:  '10',
+             flags: '--std=c++2a'}
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.8
+    - name: Install Python dependencies
+      run: |
+        pip install bfg9000
+    - name: Install Linux dependencies
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get install ninja-build libboost-dev libboost-iostreams-dev libboost-program-options-dev
+    - name: Install Windows dependencies
+      if: matrix.os == 'windows-latest'
+      run: |
+        cinst ninja
+        $gnomebase = "https://ftp.gnome.org/pub/gnome/binaries/win32"
+        curl -LO $gnomebase/dependencies/pkg-config_0.26-1_win32.zip
+        curl -LO $gnomebase/glib/2.28/glib_2.28.8-1_win32.zip
+        curl -LO $gnomebase/dependencies/gettext-runtime_0.18.1.1-2_win32.zip
+        7z x -y pkg-config_0.26-1_win32.zip -oC:\pkg-config
+        7z x -y glib_2.28.8-1_win32.zip -oC:\pkg-config
+        7z x -y gettext-runtime_0.18.1.1-2_win32.zip -oC:\pkg-config
+        echo "PKG_CONFIG=C:\pkg-config\bin\pkg-config.exe" >> ${env:GITHUB_ENV}
+        echo "BOOST_INCLUDEDIR=${env:BOOST_ROOT_${{ matrix.boost }}}\include" >> ${env:GITHUB_ENV}
+        echo "BOOST_LIBRARYDIR=${env:BOOST_ROOT_${{ matrix.boost }}}\lib" >> ${env:GITHUB_ENV}
+    - name: Install macOS dependencies
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install ninja pkg-config boost
+    - name: Install gcc
+      if: matrix.compiler == 'gcc'
+      run: |
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+        sudo apt-get update
+        sudo apt-get install g++-${{ matrix.version }}
+        echo "CXX=g++-${{ matrix.version }}" >> ${GITHUB_ENV}
+    - name: Install clang
+      if: matrix.compiler == 'clang'
+      run: |
+        wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key 2>/dev/null | sudo apt-key add -
+        sudo add-apt-repository "deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-${{ matrix.version }} main"
+        sudo apt-get update
+        sudo apt-get install clang-${{ matrix.version }}
+        echo "CXX=clang++-${{ matrix.version }}" >> ${GITHUB_ENV}
+    - name: Initialize MSVC ${{ matrix.version }}
+      if: matrix.os == 'windows-latest'
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        toolset: ${{ matrix.version }}
+    - name: Clone mettle
+      uses: actions/checkout@v2
+      with:
+        repository: jimporter/mettle
+        path: mettle
+    - name: Build mettle
+      if: matrix.os != 'windows-latest'
+      run: |
+        pushd mettle
+        CPATH="`pwd`/../include" 9k build --backend=ninja --prefix=${HOME}
+        cd build
+        ninja install
+        popd
+        echo "PATH=${HOME}/bin:${PATH}" >> ${GITHUB_ENV}
+        echo "CPATH=${HOME}/include" >> ${GITHUB_ENV}
+        echo "PKG_CONFIG_PATH=${HOME}/lib/pkgconfig" >> ${GITHUB_ENV}
+    - name: Build mettle (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        ${env:CPATH} = "${pwd}\include"
+        pushd mettle
+        9k build --backend=ninja --prefix=$env:HOME\mettle
+        cd build
+        ninja install
+        popd
+        echo "PATH=${env:HOME}\mettle;${env:PATH}" >> ${env:GITHUB_ENV}
+        echo "CPATH=${env:HOME}\mettle" >> ${env:GITHUB_ENV}
+        echo "PKG_CONFIG_PATH=${env:HOME}\mettle\pkgconfig" >> ${env:GITHUB_ENV}
+    - name: Run tests
+      if: matrix.os != 'windows-latest'
+      run: |
+        CXXFLAGS="${COMMONFLAGS} ${{ matrix.flags }}" 9k build --backend=ninja
+        cd build
+        ninja test
+    - name: Run tests (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        ${env:CXXFLAGS} = "/WX ${{ matrix.flags }}"
+        9k build --backend=ninja
+        cd build
+        ninja test
