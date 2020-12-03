@@ -1,5 +1,9 @@
 # Changes
 
+## v0.2.1 (2020-12-03)
+
+- Require `bfg9000` v0.6 for builds/tests
+
 ## v0.2 (2019-11-26)
 
 - Use `std::string_view` if available
