@@ -12,7 +12,7 @@
 This library requires a C++11 compiler and [Boost][boost] 1.23+. If your
 standard library supports `string_view`, (either via C++17 or the [Library
 Fundamentals TS][library-fundamentals]), bencode.hpp will use that as well. In
-addition, the tests require a C++14 compiler and [mettle][mettle].
+addition, the tests require a C++17 compiler and [mettle][mettle].
 
 ## Installation
 
