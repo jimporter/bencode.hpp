@@ -1,5 +1,9 @@
 # Changes
 
+## v0.3 (in progress)
+
+- Improve performance of `decode`
+
 ## v0.2.1 (2020-12-03)
 
 - Require `bfg9000` v0.6 for builds/tests
