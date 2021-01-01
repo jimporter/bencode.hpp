@@ -100,8 +100,8 @@ namespace bencode {
 
       // TODO: handle overflow
       integer value = 0;
-      for(; begin != end && std::isdigit(*begin); ++begin)
-        value = value * 10 + *begin - '0';
+      while(begin != end && std::isdigit(*begin))
+        value = value * 10 + *begin++ - '0';
       if(begin == end)
         throw std::invalid_argument("unexpected end of string");
       if(*begin != 'e')
@@ -127,10 +127,9 @@ namespace bencode {
         if(std::distance(begin, end) < static_cast<std::ptrdiff_t>(len))
           throw std::invalid_argument("unexpected end of string");
 
-        std::string value(len, 0);
-        std::copy_n(begin, len, value.begin());
+        auto orig = begin;
         std::advance(begin, len);
-        return value;
+        return std::string(orig, begin);
       }
 
       template<typename Iter, typename Size>
@@ -139,8 +138,7 @@ namespace bencode {
         for(Size i = 0; i < len; i++) {
           if(begin == end)
             throw std::invalid_argument("unexpected end of string");
-          value[i] = *begin;
-          ++begin;
+          value[i] = *begin++;
         }
         return value;
       }
@@ -165,8 +163,8 @@ namespace bencode {
     decode_str(T &begin, T end) {
       assert(std::isdigit(*begin));
       std::size_t len = 0;
-      for(; begin != end && std::isdigit(*begin); ++begin)
-        len = len * 10 + *begin - '0';
+      while(begin != end && std::isdigit(*begin))
+        len = len * 10 + *begin++ - '0';
 
       if(begin == end)
         throw std::invalid_argument("unexpected end of string");
