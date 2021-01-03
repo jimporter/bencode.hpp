@@ -4,102 +4,197 @@
 #include <algorithm>
 #include <cassert>
 #include <cctype>
-#include <cstdint>
-#include <cstring>
+#include <cstddef>
 #include <iterator>
 #include <iostream>
 #include <map>
+#include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
+#include <variant>
 #include <vector>
-
-#include <boost/variant.hpp>
-
-// Try to use std::string_view, N4480's version, or fall back to Boost's.
-
-#ifdef __has_include
-#  if __has_include(<string_view>) && (__cplusplus >= 201703L || \
-      (defined(_MSVC_LANG) && _MSVC_LANG >= 201703L))
-#    include <string_view>
-#    define BENCODE_STRING_VIEW std::string_view
-#  elif __has_include(<experimental/string_view>) && \
-        !defined(BENCODE_NO_STDLIB_EXTS)
-#    include <experimental/string_view>
-#    define BENCODE_STRING_VIEW std::experimental::string_view
-#  endif
-#endif
-
-#ifndef BENCODE_STRING_VIEW
-#  ifdef BENCODE_USE_STDLIB_EXTS
-#    include <experimental/string_view>
-#    define BENCODE_STRING_VIEW std::experimental::string_view
-#  else
-#    include <boost/version.hpp>
-#    if BOOST_VERSION >= 106100
-#      include <boost/utility/string_view.hpp>
-#      define BENCODE_STRING_VIEW boost::string_view
-#    else
-#      include <boost/utility/string_ref.hpp>
-#      define BENCODE_STRING_VIEW boost::string_ref
-#    endif
-#  endif
-#endif
 
 namespace bencode {
 
-  using integer = long long;
-  using integer_view = integer;
-  using string = std::string;
-  using string_view = BENCODE_STRING_VIEW;
+#define BENCODE_MAP_PROXY_FN_1(name, specs)                                   \
+  template<typename T>                                                        \
+  auto name(T &&t) specs { return proxy_->name(std::forward<T>(t)); }
 
-  using data = boost::make_recursive_variant<
-    integer,
-    string,
-    std::vector<boost::recursive_variant_>,
-    std::map<string, boost::recursive_variant_>
-  >::type;
+#define BENCODE_MAP_PROXY_FN_N(name, specs)                                   \
+  template<typename ...T>                                                     \
+  auto name(T &&...t) specs { return proxy_->name(std::forward<T>(t)...); }
 
-  using data_view = boost::make_recursive_variant<
-    integer_view,
-    string_view,
-    std::vector<boost::recursive_variant_>,
-    std::map<string_view, boost::recursive_variant_>
-  >::type;
+  // A proxy of std::map, since the standard doesn't require that map support
+  // incomplete types.
+  template<typename Key, typename Value>
+  class map_proxy {
+  public:
+    using map_type = std::map<Key, Value>;
+    using key_type = Key;
+    using mapped_type = Value;
+    using value_type = std::pair<const Key, Value>;
 
-  using list = std::vector<data>;
-  using dict = std::map<string, data>;
+    // Construction/assignment
+    map_proxy() : proxy_(new map_type()) {}
+    map_proxy(const map_proxy &rhs) : proxy_(new map_type(*rhs.proxy_)) {}
+    map_proxy(map_proxy &&rhs) noexcept : proxy_(std::move(rhs.proxy_)) {}
+    map_proxy(std::initializer_list<value_type> i) : proxy_(new map_type(i)) {}
 
-  using list_view = std::vector<data_view>;
-  using dict_view = std::map<string_view, data_view>;
+    map_proxy operator =(const map_proxy &rhs) {
+      *proxy_ = *rhs.proxy_;
+      return *this;
+    }
+
+    map_proxy operator =(const map_proxy &&rhs) {
+      *proxy_ = std::move(*rhs.proxy_);
+      return *this;
+    }
+
+    void swap(const map_proxy &rhs) { proxy_->swap(*rhs.proxy); }
+
+    operator map_type &() { return *proxy_; };
+    operator const map_type &() const { return *proxy_; };
+
+    // Pointer access
+    map_type & operator *() { return *proxy_; }
+    const map_type & operator *() const { return *proxy_; }
+    map_type * operator ->() { return proxy_.get(); }
+    const map_type * operator ->() const { return proxy_.get(); }
+
+    // Element access
+    template<typename K>
+    mapped_type & at(K &&k) { return proxy_->at(std::forward<K>(k)); }
+    template<typename K>
+    const mapped_type &
+    at(K &&k) const { return proxy_->at(std::forward<K>(k)); }
+    template<typename K>
+    mapped_type & operator [](K &&k) { return (*proxy_)[std::forward<K>(k)]; }
+
+    // Iterators
+    auto begin() noexcept { return proxy_->begin(); }
+    auto begin() const noexcept { return proxy_->begin(); }
+    auto cbegin() const noexcept { return proxy_->cbegin(); }
+    auto end() noexcept { return proxy_->end(); }
+    auto end() const noexcept { return proxy_->end(); }
+    auto cend() const noexcept { return proxy_->cend(); }
+    auto rbegin() noexcept { return proxy_->rbegin(); }
+    auto rbegin() const noexcept { return proxy_->rbegin(); }
+    auto crbegin() const noexcept { return proxy_->crbegin(); }
+    auto rend() noexcept { return proxy_->rend(); }
+    auto rend() const noexcept { return proxy_->rend(); }
+    auto crend() const noexcept { return proxy_->crend(); }
+
+    // Capacity
+    bool empty() const noexcept { return proxy_->empty(); }
+    auto size() const noexcept { return proxy_->size(); }
+    auto max_size() const noexcept { return proxy_->max_size(); }
+
+    // Modifiers
+    void clear() noexcept { proxy_->clear(); }
+    BENCODE_MAP_PROXY_FN_N(insert,)
+    BENCODE_MAP_PROXY_FN_N(insert_or_assign,)
+    BENCODE_MAP_PROXY_FN_N(emplace,)
+    BENCODE_MAP_PROXY_FN_N(emplace_hint,)
+    BENCODE_MAP_PROXY_FN_N(try_emplace,)
+    BENCODE_MAP_PROXY_FN_N(erase,)
+
+    // Lookup
+    BENCODE_MAP_PROXY_FN_1(count, const)
+    BENCODE_MAP_PROXY_FN_1(find,)
+    BENCODE_MAP_PROXY_FN_1(find, const)
+    BENCODE_MAP_PROXY_FN_1(equal_range,)
+    BENCODE_MAP_PROXY_FN_1(equal_range, const)
+    BENCODE_MAP_PROXY_FN_1(lower_bound,)
+    BENCODE_MAP_PROXY_FN_1(lower_bound, const)
+    BENCODE_MAP_PROXY_FN_1(upper_bound,)
+    BENCODE_MAP_PROXY_FN_1(upper_bound, const)
+
+    auto key_comp() const { return proxy_->key_comp(); }
+    auto value_comp() const { return proxy_->value_comp(); }
+
+  private:
+    std::unique_ptr<map_type> proxy_;
+  };
+
+#define BENCODE_MAP_PROXY_RELOP(op)                                           \
+  template<typename Key, typename Value>                                      \
+  bool operator op(const map_proxy<Key, Value> &lhs,                          \
+                   const map_proxy<Key, Value> &rhs) {                        \
+    return *lhs == *rhs;                                                      \
+  }
+
+  BENCODE_MAP_PROXY_RELOP(==)
+  BENCODE_MAP_PROXY_RELOP(!=)
+  BENCODE_MAP_PROXY_RELOP(>=)
+  BENCODE_MAP_PROXY_RELOP(<=)
+  BENCODE_MAP_PROXY_RELOP(>)
+  BENCODE_MAP_PROXY_RELOP(<)
+
+  template<template<typename ...> typename Variant, typename I, typename S,
+           template<typename ...> typename L, template<typename ...> typename D>
+  struct basic_data : Variant<I, S, L<basic_data<Variant, I, S, L, D>>,
+                              D<S, basic_data<Variant, I, S, L, D>>> {
+    using integer = I;
+    using string = S;
+    using list = L<basic_data>;
+    using dict = D<S, basic_data>;
+
+    using base_type = Variant<integer, string, list, dict>;
+    using base_type::base_type;
+
+    base_type & base() { return *this; }
+    const base_type & base() const { return *this; }
+  };
+
+  template<template<typename ...> typename T>
+  struct variant_traits {
+    template<typename Visitor, typename ...Variants>
+    inline static void call_visit(Visitor &&visitor, Variants &&...variants) {
+      visit(std::forward<Visitor>(visitor),
+            std::forward<Variants>(variants)...);
+    }
+  };
+
+  using data = basic_data<std::variant, long long, std::string, std::vector,
+                          map_proxy>;
+  using data_view = basic_data<std::variant, long long, std::string_view,
+                               std::vector, map_proxy>;
+
+  using integer = data::integer;
+  using string = data::string;
+  using list = data::list;
+  using dict = data::dict;
+
+  using integer_view = data_view::integer;
+  using string_view = data_view::string;
+  using list_view = data_view::list;
+  using dict_view = data_view::dict;
 
   enum eof_behavior {
     check_eof,
     no_check_eof
   };
 
-  template<typename T>
-  data decode(T &begin, T end);
+  template<typename Data, typename Iter>
+  Data basic_decode(Iter &begin, Iter end);
 
   namespace detail {
-    template<bool View, typename T>
-    typename std::conditional<View, data_view, data>::type
-    decode_data(T &begin, T end);
 
-    template<bool View, typename T>
-    typename std::conditional<View, integer_view, integer>::type
-    decode_int(T &begin, T end) {
+    template<typename Data, typename Iter>
+    typename Data::integer decode_int(Iter &begin, Iter end) {
       assert(*begin == 'i');
       ++begin;
 
-      bool positive = true;
+      typename Data::integer positive = 1;
       if(*begin == '-') {
-        positive = false;
+        positive = -1;
         ++begin;
       }
 
       // TODO: handle overflow
-      integer value = 0;
+      typename Data::integer value = 0;
       while(begin != end && std::isdigit(*begin))
         value = value * 10 + *begin++ - '0';
       if(begin == end)
@@ -108,14 +203,14 @@ namespace bencode {
         throw std::invalid_argument("expected 'e'");
 
       ++begin;
-      return positive ? value : -value;
+      return positive * value;
     }
 
-    template<bool View>
+    template<typename String>
     class str_reader {
     public:
       template<typename Iter, typename Size>
-      inline string operator ()(Iter &begin, Iter end, Size len) {
+      inline String operator ()(Iter &begin, Iter end, Size len) {
         return call(
           begin, end, len,
           typename std::iterator_traits<Iter>::iterator_category()
@@ -123,18 +218,18 @@ namespace bencode {
       }
     private:
       template<typename Iter, typename Size>
-      string call(Iter &begin, Iter end, Size len, std::forward_iterator_tag) {
+      String call(Iter &begin, Iter end, Size len, std::forward_iterator_tag) {
         if(std::distance(begin, end) < static_cast<std::ptrdiff_t>(len))
           throw std::invalid_argument("unexpected end of string");
 
         auto orig = begin;
         std::advance(begin, len);
-        return std::string(orig, begin);
+        return String(orig, begin);
       }
 
       template<typename Iter, typename Size>
-      string call(Iter &begin, Iter end, Size len, std::input_iterator_tag) {
-        std::string value(len, 0);
+      String call(Iter &begin, Iter end, Size len, std::input_iterator_tag) {
+        String value(len, 0);
         for(Size i = 0; i < len; i++) {
           if(begin == end)
             throw std::invalid_argument("unexpected end of string");
@@ -145,22 +240,21 @@ namespace bencode {
     };
 
     template<>
-    class str_reader<true> {
+    class str_reader<std::string_view> {
     public:
       template<typename Iter, typename Size>
-      string_view operator ()(Iter &begin, Iter end, Size len) {
+      std::string_view operator ()(Iter &begin, Iter end, Size len) {
         if(std::distance(begin, end) < static_cast<std::ptrdiff_t>(len))
           throw std::invalid_argument("unexpected end of string");
 
-        string_view value(&*begin, len);
+        std::string_view value(&*begin, len);
         std::advance(begin, len);
         return value;
       }
     };
 
-    template<bool View, typename T>
-    typename std::conditional<View, string_view, string>::type
-    decode_str(T &begin, T end) {
+    template<typename Data, typename Iter>
+    typename Data::string decode_str(Iter &begin, Iter end) {
       assert(std::isdigit(*begin));
       std::size_t len = 0;
       while(begin != end && std::isdigit(*begin))
@@ -172,18 +266,17 @@ namespace bencode {
         throw std::invalid_argument("expected ':'");
       ++begin;
 
-      return str_reader<View>{}(begin, end, len);
+      return str_reader<typename Data::string>{}(begin, end, len);
     }
 
-    template<bool View, typename T>
-    typename std::conditional<View, list_view, list>::type
-    decode_list(T &begin, T end) {
+    template<typename Data, typename Iter>
+    typename Data::list decode_list(Iter &begin, Iter end) {
       assert(*begin == 'l');
       ++begin;
 
-      typename std::conditional<View, list_view, list>::type value;
+      typename Data::list value;
       while(begin != end && *begin != 'e') {
-        value.push_back(decode_data<View>(begin, end));
+        value.push_back(basic_decode<Data>(begin, end));
       }
 
       if(begin == end)
@@ -193,19 +286,18 @@ namespace bencode {
       return value;
     }
 
-    template<bool View, typename T>
-    typename std::conditional<View, dict_view, dict>::type
-    decode_dict(T &begin, T end) {
+    template<typename Data, typename Iter>
+    typename Data::dict decode_dict(Iter &begin, Iter end) {
       assert(*begin == 'd');
       ++begin;
 
-      typename std::conditional<View, dict_view, dict>::type value;
+      typename Data::dict value;
       while(begin != end && *begin != 'e') {
         if(!std::isdigit(*begin))
           throw std::invalid_argument("expected string token");
 
-        auto k = decode_str<View>(begin, end);
-        auto v = decode_data<View>(begin, end);
+        auto k = decode_str<Data>(begin, end);
+        auto v = basic_decode<Data>(begin, end);
         auto result = value.emplace(std::move(k), std::move(v));
         if(!result.second) {
           throw std::invalid_argument(
@@ -221,44 +313,43 @@ namespace bencode {
       return value;
     }
 
-    template<bool View, typename T>
-    typename std::conditional<View, data_view, data>::type
-    decode_data(T &begin, T end) {
-      if(begin == end)
-        throw std::invalid_argument("unexpected end of string");
-
-      if(*begin == 'i')
-        return decode_int<View>(begin, end);
-      else if(*begin == 'l')
-        return decode_list<View>(begin, end);
-      else if(*begin == 'd')
-        return decode_dict<View>(begin, end);
-      else if(std::isdigit(*begin))
-        return decode_str<View>(begin, end);
-
-      throw std::invalid_argument("unexpected type");
-    }
-
   }
 
-  template<typename T>
-  inline data decode(T &begin, T end) {
-    return detail::decode_data<false>(begin, end);
+  template<typename Data, typename Iter>
+  Data basic_decode(Iter &begin, Iter end) {
+    if(begin == end)
+      throw std::invalid_argument("unexpected end of string");
+
+    if(*begin == 'i')
+      return detail::decode_int<Data>(begin, end);
+    else if(*begin == 'l')
+      return detail::decode_list<Data>(begin, end);
+    else if(*begin == 'd')
+      return detail::decode_dict<Data>(begin, end);
+    else if(std::isdigit(*begin))
+      return detail::decode_str<Data>(begin, end);
+
+    throw std::invalid_argument("unexpected type");
   }
 
-  template<typename T>
-  inline data decode(const T &begin, T end) {
-    T b(begin);
-    return detail::decode_data<false>(b, end);
+  template<typename Data, typename Iter>
+  inline Data basic_decode(const Iter &begin, Iter end) {
+    Iter b(begin);
+    return basic_decode<Data>(b, end);
   }
 
-  inline data decode(const string_view &s) {
-    return decode(s.begin(), s.end());
+  template<typename Data>
+  inline Data basic_decode(const string_view &s) {
+    return basic_decode<Data>(s.begin(), s.end());
   }
 
-  inline data decode(std::istream &s, eof_behavior e = check_eof) {
+  template<typename Data>
+  Data basic_decode(std::istream &s, eof_behavior e = check_eof) {
+    static_assert(!std::is_same_v<typename Data::string, std::string_view>,
+                  "reading from stream not supported for data views");
+
     std::istreambuf_iterator<char> begin(s), end;
-    auto result = decode(begin, end);
+    auto result = basic_decode<Data>(begin, end);
     // If we hit EOF, update the parent stream.
     if(e == check_eof && begin == end)
       s.setstate(std::ios_base::eofbit);
@@ -266,18 +357,35 @@ namespace bencode {
   }
 
   template<typename T>
+  inline data decode(T &begin, T end) {
+    return basic_decode<data>(begin, end);
+  }
+
+  template<typename T>
+  inline data decode(const T &begin, T end) {
+    return basic_decode<data>(begin, end);
+  }
+
+  inline data decode(const string_view &s) {
+    return basic_decode<data>(s.begin(), s.end());
+  }
+
+  inline data decode(std::istream &s, eof_behavior e = check_eof) {
+    return basic_decode<data>(s, e);
+  }
+
+  template<typename T>
   inline data_view decode_view(T &begin, T end) {
-    return detail::decode_data<true>(begin, end);
+    return basic_decode<data_view>(begin, end);
   }
 
   template<typename T>
   inline data_view decode_view(const T &begin, T end) {
-    T b(begin);
-    return detail::decode_data<true>(b, end);
+    return basic_decode<data_view>(begin, end);
   }
 
   inline data_view decode_view(const string_view &s) {
-    return decode_view(s.begin(), s.end());
+    return basic_decode<data_view>(s.begin(), s.end());
   }
 
   namespace detail {
@@ -344,8 +452,13 @@ namespace bencode {
       e.add(i.first, i.second);
   }
 
+  template<typename K, typename V>
+  void encode(std::ostream &os, const map_proxy<K, V> &value) {
+    encode(os, *value);
+  }
+
   namespace detail {
-    class encode_visitor : public boost::static_visitor<> {
+    class encode_visitor {
     public:
       inline encode_visitor(std::ostream &os) : os(os) {}
 
@@ -358,14 +471,11 @@ namespace bencode {
     };
   }
 
-  // Overload for `data` and `data_view`, but only if the passed-in type is
-  // already one of the two. Don't accept an implicit conversion!
-  template<typename T>
-  auto encode(std::ostream &os, const T &value) ->
-  typename std::enable_if<
-    std::is_same<T, data>::value || std::is_same<T, data_view>::value
-  >::type {
-    boost::apply_visitor(detail::encode_visitor(os), value);
+  template<template<typename ...> typename Variant, typename I, typename S,
+           template<typename ...> typename L, template<typename ...> typename D>
+  void encode(std::ostream &os, const basic_data<Variant, I, S, L, D> &value) {
+    variant_traits<Variant>::call_visit(detail::encode_visitor(os),
+                                        value.base());
   }
 
   namespace detail {

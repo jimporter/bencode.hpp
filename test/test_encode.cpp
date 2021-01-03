@@ -2,6 +2,7 @@
 using namespace mettle;
 
 #include "bencode.hpp"
+#include "boost_variant.hpp"
 
 suite<> test_encode("test encoder", [](auto &_) {
 
@@ -89,6 +90,41 @@ suite<> test_encode("test encoder", [](auto &_) {
       expect(bencode::encode(m), equal_to(
         "d1:ad1:ai1ee1:bd1:ai1e1:bi2ee1:cd1:ai1e1:bi2e1:ci3eee"
       ));
+    });
+  });
+
+  subsuite<bencode::data, bdata>(_, "data", type_only, [](auto &_) {
+    using DataType = fixture_type_t<decltype(_)>;
+
+    _.test("integer", []() {
+      DataType d = 666;
+      expect(bencode::encode(d), equal_to("i666e"));
+    });
+
+    _.test("string", []() {
+      DataType d = "foo";
+      expect(bencode::encode(d), equal_to("3:foo"));
+    });
+
+    _.test("list", []() {
+      DataType d1 = typename DataType::list{};
+      expect(bencode::encode(d1), equal_to("le"));
+
+      DataType d2 = typename DataType::list{1, "foo", 2};
+      expect(bencode::encode(d2),
+             equal_to("l" "i1e" "3:foo" "i2e" "e"));
+    });
+
+    _.test("dict", []() {
+      DataType d1 = typename DataType::dict{};
+      expect(bencode::encode(d1), equal_to("de"));
+      DataType d2 = typename DataType::dict{
+        {"one", 1},
+        {"two", "foo"},
+        {"three", 2}
+      };
+      expect(bencode::encode(d2),
+             equal_to("d" "3:one" "i1e" "5:three" "i2e" "3:two" "3:foo" "e"));
     });
   });
 

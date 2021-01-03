@@ -31,7 +31,6 @@ jobs:
              flags: '-Wsuggest-override'}
 
           # Clang builds
-          - {os: ubuntu-latest, compiler: clang, version:  '6.0'}
           - {os: ubuntu-latest, compiler: clang, version:  '7'}
           - {os: ubuntu-latest, compiler: clang, version:  '8'}
           - {os: ubuntu-latest, compiler: clang, version:  '9'}
@@ -131,7 +130,7 @@ jobs:
         if: "!startsWith(matrix.os, 'windows-')"
         run: |
           pushd mettle
-          CPATH="`pwd`/../include" 9k build --backend=ninja --prefix=${HOME}
+          9k build --backend=ninja --prefix=${HOME} --vendorize
           cd build
           ninja install
           popd
@@ -142,9 +141,8 @@ jobs:
       - name: Build mettle (Windows)
         if: startsWith(matrix.os, 'windows-')
         run: |
-          ${env:CPATH} = "${pwd}\include"
           pushd mettle
-          9k build --backend=ninja --prefix=$env:HOME\mettle
+          9k build --backend=ninja --prefix=$env:HOME\mettle --vendorize
           cd build
           ninja install
           popd

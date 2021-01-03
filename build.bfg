@@ -10,7 +10,6 @@ includes = header_directory('include', include='**/*.hpp')
 install(includes)
 
 test_files = find_paths('test/**/*.cpp')
-boost = boost_package(version='>=1.23')
 
 try:
     libmettle = package('mettle', headers=['mettle.hpp'])
@@ -21,7 +20,7 @@ try:
             src.stripext().suffix,
             files=src,
             includes=includes,
-            packages=[boost, libmettle]
+            packages=[libmettle]
         ), driver=mettle)
 except PackageResolutionError:
     warning('mettle not found; tests disabled')
