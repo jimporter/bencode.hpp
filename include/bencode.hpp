@@ -16,6 +16,13 @@
 #include <variant>
 #include <vector>
 
+#ifdef __has_include
+#  if __has_include(<boost/variant.hpp>)
+#    include <boost/variant.hpp>
+#    define BENCODE_HAS_BOOST
+#  endif
+#endif
+
 namespace bencode {
 
 #define BENCODE_MAP_PROXY_FN_1(name, specs)                                   \
@@ -161,6 +168,24 @@ namespace bencode {
                           map_proxy>;
   using data_view = basic_data<std::variant, long long, std::string_view,
                                std::vector, map_proxy>;
+
+#ifdef BENCODE_HAS_BOOST
+  using boost_data = bencode::basic_data<
+    boost::variant, long long, std::string, std::vector, bencode::map_proxy
+  >;
+  using boost_data_view = bencode::basic_data<
+    boost::variant, long long, std::string_view, std::vector, bencode::map_proxy
+  >;
+
+  template<>
+  struct variant_traits<boost::variant> {
+    template<typename Visitor, typename ...Variants>
+    static void call_visit(Visitor &&visitor, Variants &&...variants) {
+      boost::apply_visitor(std::forward<Visitor>(visitor),
+                           std::forward<Variants>(variants)...);
+    }
+  };
+#endif
 
   using integer = data::integer;
   using string = data::string;
@@ -387,6 +412,40 @@ namespace bencode {
   inline data_view decode_view(const string_view &s) {
     return basic_decode<data_view>(s.begin(), s.end());
   }
+
+#ifdef BENCODE_HAS_BOOST
+  template<typename T>
+  inline boost_data boost_decode(T &begin, T end) {
+    return basic_decode<boost_data>(begin, end);
+  }
+
+  template<typename T>
+  inline boost_data boost_decode(const T &begin, T end) {
+    return basic_decode<boost_data>(begin, end);
+  }
+
+  inline boost_data boost_decode(const string_view &s) {
+    return basic_decode<boost_data>(s.begin(), s.end());
+  }
+
+  inline boost_data boost_decode(std::istream &s, eof_behavior e = check_eof) {
+    return basic_decode<boost_data>(s, e);
+  }
+
+  template<typename T>
+  inline boost_data_view boost_decode_view(T &begin, T end) {
+    return basic_decode<boost_data_view>(begin, end);
+  }
+
+  template<typename T>
+  inline boost_data_view boost_decode_view(const T &begin, T end) {
+    return basic_decode<boost_data_view>(begin, end);
+  }
+
+  inline boost_data_view boost_decode_view(const string_view &s) {
+    return basic_decode<boost_data_view>(s.begin(), s.end());
+  }
+#endif
 
   namespace detail {
     class list_encoder {

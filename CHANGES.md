@@ -2,8 +2,7 @@
 
 ## v0.3 (in progress)
 
-- Replace usage of `boost::variant` with `std::variant` (thus requiring C++17 or
-  newer)
+- Use `std::variant` by default (thus requiring C++17 or newer)
 - Allow customizing the variant type used via `bencode::basic_data`
 - Improve performance of `decode`; decoding is now ~2x as fast for most data
   (~1.5x when using views)!

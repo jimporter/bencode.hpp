@@ -11,7 +11,12 @@
 
 This library has no external dependencies and only requires a C++17 compiler.
 It's been tested on [Clang][clang] 7+, [GCC][gcc] 7+, and [MSVC][msvc] 2017+.
-(Note: the unit tests depend upon [mettle][mettle].)
+The unit tests do depend on [mettle][mettle], however.
+
+**Note:** if Boost is installed, bencode.hpp will provide the ability to use
+[`boost::variant`](#boostvariant), which can perform significantly better than
+`std::variant` (up to 2x faster than libstdc++ or libc++ when decoding
+integers).
 
 ## Installation
 
@@ -71,18 +76,6 @@ multiple bencoded messages from a pipe:
 auto data = bencode::decode(stream, bencode::no_check_eof);
 ```
 
-### Visiting
-
-The `bencode::data` type is simply a subclass of `std::variant` (likewise
-`bencode::data_view`). This usually works without issue; however, due to a
-[quirk][inheriting-variant] in the specification, not all standard libraries
-support passing `bencode::data` to `std::visit`. To get around this issue, you
-can call the `base()` method to cast `bencode::data` to a `std::variant`:
-
-```c++
-std::visit(visitor_fn, my_data.base());
-```
-
 #### Views
 
 If the buffer holding the bencoded data is stable (i.e. won't change or be
@@ -95,6 +88,18 @@ buffer. Simply append `_view` to the functions/types to take advantage of this:
 std::string buf = "3:foo";
 auto data = bencode::decode_view(buf);
 auto value = std::get<bencode::string_view>(data);
+```
+
+### Visiting
+
+The `bencode::data` type is simply a subclass of `std::variant` (likewise
+`bencode::data_view`). This usually works without issue; however, due to a
+[quirk][inheriting-variant] in the specification, not all standard libraries
+support passing `bencode::data` to `std::visit`. To get around this issue, you
+can call the `base()` method to cast `bencode::data` to a `std::variant`:
+
+```c++
+std::visit(visitor_fn, my_data.base());
 ```
 
 ### Encoding
@@ -122,6 +127,22 @@ bencode::encode(std::cout, bencode::dict{
 As with encoding, you can use the `*_view` types if you know the underlying
 memory will live until the encoding function returns.
 
+### `boost::variant`
+
+If Boost is installed, bencode.hpp will provide functions to decode data into a
+`boost::variant`. This can be particularly useful for some data sets, since
+`boost::variant` is consistently faster than most `std::variant`
+implementations, especially when storing integers.
+
+These functions work the same as the regular bencode.hpp versions, but are
+prefixed with `boost_`:
+
+```c++
+bencode::boost_data d = bencode::boost_decode(msg);
+bencode::boost_data_view dv = bencode::boost_decode_view(msg);
+// ...
+```
+
 ### Bringing Your Own Variant
 
 In addition to using the built-in data types `bencode::data` and
@@ -130,16 +151,12 @@ class template. This can be useful if you want different alternative types in
 your variant (e.g. using `std::map` instead of `bencode::map_proxy` if your
 standard library supports that) or to use a different variant type altogether.
 
-In particular, `boost::variant` is consistently faster than the libstdc++ or
-libc++ implementations of `std::variant`, especially for storing primitive
-types (up to 2x faster!):
-
 ```c++
-using boost_data = bencode::basic_data<
-  boost::variant, long long, std::string, std::vector, bencode::map_proxy
+using cool_data = bencode::basic_data<
+  cool_variant, long long, std::string, std::vector, bencode::map_proxy
 >;
 
-auto my_data = bencode::basic_decode<boost_data>(message);
+auto result = bencode::basic_decode<cool_data>(message);
 ```
 
 Note that when using a different variant type, you'll likely want to create a
@@ -148,11 +165,11 @@ call the visitor function for your type:
 
 ```c++
 template<>
-struct bencode::variant_traits<boost::variant> {
+struct bencode::variant_traits<cool_variant> {
   template<typename Visitor, typename ...Variants>
   static void call_visit(Visitor &&visitor, Variants &&...variants) {
-    boost::apply_visitor(std::forward<Visitor>(visitor),
-                         std::forward<Variants>(variants)...);
+    cool_visit(std::forward<Visitor>(visitor),
+               std::forward<Variants>(variants)...);
   }
 };
 ```

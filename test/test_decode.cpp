@@ -2,7 +2,6 @@
 using namespace mettle;
 
 #include "bencode.hpp"
-#include "boost_variant.hpp"
 
 struct at_eof : matcher_tag {
   bool operator ()(const std::string &) const {
@@ -21,7 +20,9 @@ struct at_eof : matcher_tag {
 
 suite<> test_decode("test decoder", [](auto &_) {
 
-  subsuite<bencode::data, bdata>(_, "decoding", type_only, [](auto &_) {
+  subsuite<
+    bencode::data, bencode::boost_data
+  >(_, "decoding", type_only, [](auto &_) {
     using DataType = fixture_type_t<decltype(_)>;
     using boost::get;
     using std::get;
@@ -117,7 +118,7 @@ suite<> test_decode("test decoder", [](auto &_) {
   });
 
   subsuite<
-    bencode::data_view, bdata_view
+    bencode::data_view, bencode::boost_data_view
   >(_, "decoding (view)", type_only, [](auto &_) {
     using DataType = fixture_type_t<decltype(_)>;
     using boost::get;

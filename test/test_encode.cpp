@@ -2,7 +2,6 @@
 using namespace mettle;
 
 #include "bencode.hpp"
-#include "boost_variant.hpp"
 
 suite<> test_encode("test encoder", [](auto &_) {
 
@@ -93,7 +92,9 @@ suite<> test_encode("test encoder", [](auto &_) {
     });
   });
 
-  subsuite<bencode::data, bdata>(_, "data", type_only, [](auto &_) {
+  subsuite<
+    bencode::data, bencode::boost_data
+  >(_, "data", type_only, [](auto &_) {
     using DataType = fixture_type_t<decltype(_)>;
 
     _.test("integer", []() {
