@@ -149,7 +149,7 @@ In addition to using the built-in data types `bencode::data` and
 `bencode::data_view`, you can define your own with the `bencode::basic_data`
 class template. This can be useful if you want different alternative types in
 your variant (e.g. using `std::map` instead of `bencode::map_proxy` if your
-standard library supports that) or to use a different variant type altogether.
+standard library supports that) or to use a different variant type altogether:
 
 ```c++
 using cool_data = bencode::basic_data<
