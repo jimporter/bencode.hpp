@@ -33,15 +33,15 @@ suite<> test_decode("test decoder", [](auto &_) {
       using Fixture = fixture_type_t<decltype(_)>;
 
       _.test("integer", []() {
-        Fixture pos("i666e");
+        Fixture pos("i42e");
         auto pos_value = bencode::basic_decode<DataType>(pos);
         expect(pos, at_eof());
-        expect(get<typename DataType::integer>(pos_value), equal_to(666));
+        expect(get<typename DataType::integer>(pos_value), equal_to(42));
 
-        Fixture neg("i-666e");
+        Fixture neg("i-42e");
         auto neg_value = bencode::basic_decode<DataType>(neg);
         expect(neg, at_eof());
-        expect(get<typename DataType::integer>(neg_value), equal_to(-666));
+        expect(get<typename DataType::integer>(neg_value), equal_to(-42));
       });
 
       _.test("string", []() {
@@ -52,19 +52,19 @@ suite<> test_decode("test decoder", [](auto &_) {
       });
 
       _.test("list", []() {
-        Fixture data("li666ee");
+        Fixture data("li42ee");
         auto value = bencode::basic_decode<DataType>(data);
         auto list = get<typename DataType::list>(value);
         expect(data, at_eof());
-        expect(get<typename DataType::integer>(list[0]), equal_to(666));
+        expect(get<typename DataType::integer>(list[0]), equal_to(42));
       });
 
       _.test("dict", []() {
-        Fixture data("d4:spami666ee");
+        Fixture data("d4:spami42ee");
         auto value = bencode::basic_decode<DataType>(data);
         auto dict = get<typename DataType::dict>(value);
         expect(data, at_eof());
-        expect(get<typename DataType::integer>(dict["spam"]), equal_to(666));
+        expect(get<typename DataType::integer>(dict["spam"]), equal_to(42));
       });
 
       _.test("nested", []() {
@@ -94,21 +94,21 @@ suite<> test_decode("test decoder", [](auto &_) {
 
   subsuite<>(_, "decode successive objects", [](auto &_) {
     _.test("from string", []() {
-      std::string data("i666e4:goat");
+      std::string data("i42e4:goat");
       auto begin = data.begin(), end = data.end();
 
       auto first = bencode::decode(begin, end);
-      expect(std::get<bencode::integer>(first), equal_to(666));
+      expect(std::get<bencode::integer>(first), equal_to(42));
 
       auto second = bencode::decode(begin, end);
       expect(std::get<bencode::string>(second), equal_to("goat"));
     });
 
     _.test("from stream", []() {
-      std::stringstream data("i666e4:goat");
+      std::stringstream data("i42e4:goat");
 
       auto first = bencode::decode(data);
-      expect(std::get<bencode::integer>(first), equal_to(666));
+      expect(std::get<bencode::integer>(first), equal_to(42));
       expect(data, is_not(at_eof()));
 
       auto second = bencode::decode(data);
@@ -125,13 +125,13 @@ suite<> test_decode("test decoder", [](auto &_) {
     using std::get;
 
     _.test("integer", []() {
-      std::string pos("i666e");
+      std::string pos("i42e");
       auto pos_value = bencode::basic_decode<DataType>(pos);
-      expect(get<typename DataType::integer>(pos_value), equal_to(666));
+      expect(get<typename DataType::integer>(pos_value), equal_to(42));
 
-      std::string neg("i-666e");
+      std::string neg("i-42e");
       auto neg_value = bencode::basic_decode<DataType>(neg);
-      expect(get<typename DataType::integer>(neg_value), equal_to(-666));
+      expect(get<typename DataType::integer>(neg_value), equal_to(-42));
     });
 
     _.test("string", []() {
@@ -149,14 +149,14 @@ suite<> test_decode("test decoder", [](auto &_) {
     });
 
     _.test("list", []() {
-      std::string data("li666ee");
+      std::string data("li42ee");
       auto value = bencode::basic_decode<DataType>(data);
       auto list = get<typename DataType::list>(value);
-      expect(get<typename DataType::integer>(list[0]), equal_to(666));
+      expect(get<typename DataType::integer>(list[0]), equal_to(42));
     });
 
     _.test("dict", []() {
-      std::string data("d4:spami666ee");
+      std::string data("d4:spami42ee");
       auto in_range = all(
         greater_equal(data.data()),
         less_equal(data.data() + data.size())
@@ -169,7 +169,7 @@ suite<> test_decode("test decoder", [](auto &_) {
       expect(&*str.end(), in_range);
       expect(str, equal_to("spam"));
 
-      expect(get<typename DataType::integer>(dict["spam"]), equal_to(666));
+      expect(get<typename DataType::integer>(dict["spam"]), equal_to(42));
     });
 
     _.test("nested", []() {

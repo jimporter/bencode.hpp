@@ -15,8 +15,8 @@ The unit tests do depend on [mettle][mettle], however.
 
 **Note:** if Boost is installed, bencode.hpp will provide the ability to use
 [`boost::variant`](#boostvariant), which can perform significantly better than
-`std::variant` (up to 2x faster than libstdc++ or libc++ when decoding
-integers).
+`std::variant` on some data sets (up to 2x faster than libstdc++ or libc++ when
+decoding integers).
 
 ## Installation
 
@@ -56,7 +56,7 @@ Decoding bencoded data is simple. Just call `decode`, which will return a `data`
 object that you can operate on:
 
 ```c++
-auto data = bencode::decode("i666e");
+auto data = bencode::decode("i42e");
 auto value = std::get<bencode::integer>(data);
 ```
 
@@ -108,10 +108,10 @@ Encoding data is also straightforward:
 
 ```c++
 // Encode and store the result in an std::string.
-auto str = bencode::encode(666);
+auto str = bencode::encode(42);
 
 // Encode and output to an std::ostream.
-bencode::encode(std::cout, 666);
+bencode::encode(std::cout, 42);
 ```
 
 You can also construct more-complex data structures:
@@ -167,9 +167,24 @@ call the visitor function for your type:
 template<>
 struct bencode::variant_traits<cool_variant> {
   template<typename Visitor, typename ...Variants>
-  static void call_visit(Visitor &&visitor, Variants &&...variants) {
-    cool_visit(std::forward<Visitor>(visitor),
-               std::forward<Variants>(variants)...);
+  static decltype(auto) visit(Visitor &&visitor, Variants &&...variants) {
+    return cool_visit(std::forward<Visitor>(visitor),
+                      std::forward<Variants>(variants).base()...);
+  }
+
+  template<typename Type, typename Variant>
+  inline static decltype(auto) get_if(Variant *variant) {
+    return cool_get_if<Type>(&variant->base());
+  }
+
+  template<typename Type, typename Variant>
+  inline static decltype(auto) get_if(const Variant *variant) {
+    return cool_get_if<Type>(&variant->base());
+  }
+
+  template<typename Variant>
+  inline static auto index(const Variant &variant) {
+    return variant.cool_index();
   }
 };
 ```

@@ -6,8 +6,8 @@ using namespace mettle;
 suite<> test_encode("test encoder", [](auto &_) {
 
   _.test("integer", []() {
-    expect(bencode::encode(666), equal_to("i666e"));
-    expect(bencode::encode(bencode::integer(666)), equal_to("i666e"));
+    expect(bencode::encode(42), equal_to("i42e"));
+    expect(bencode::encode(bencode::integer(42)), equal_to("i42e"));
   });
 
   _.test("string", []() {
@@ -98,8 +98,8 @@ suite<> test_encode("test encoder", [](auto &_) {
     using DataType = fixture_type_t<decltype(_)>;
 
     _.test("integer", []() {
-      DataType d = 666;
-      expect(bencode::encode(d), equal_to("i666e"));
+      DataType d = 42;
+      expect(bencode::encode(d), equal_to("i42e"));
     });
 
     _.test("string", []() {

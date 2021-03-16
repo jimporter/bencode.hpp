@@ -5,11 +5,12 @@
 #include <cassert>
 #include <cctype>
 #include <cstddef>
-#include <iterator>
 #include <iostream>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <sstream>
+#include <stack>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -24,6 +25,9 @@
 #endif
 
 namespace bencode {
+
+  template<template<typename ...> typename T>
+  struct variant_traits;
 
 #define BENCODE_MAP_PROXY_FN_1(name, specs)                                   \
   template<typename T>                                                        \
@@ -151,16 +155,42 @@ namespace bencode {
     using base_type = Variant<integer, string, list, dict>;
     using base_type::base_type;
 
-    base_type & base() { return *this; }
-    const base_type & base() const { return *this; }
+    base_type & base() & { return *this; }
+    base_type && base() && { return *this; }
+    const base_type & base() const & { return *this; }
   };
 
-  template<template<typename ...> typename T>
-  struct variant_traits {
+  template<typename T>
+  struct variant_traits_for;
+
+  template<template<typename ...> typename Variant,
+           typename I, typename S, template<typename ...> typename L,
+           template<typename ...> typename D>
+  struct variant_traits_for<basic_data<Variant, I, S, L, D>>
+    : variant_traits<Variant> {};
+
+  template<>
+  struct variant_traits<std::variant> {
     template<typename Visitor, typename ...Variants>
-    inline static void call_visit(Visitor &&visitor, Variants &&...variants) {
-      visit(std::forward<Visitor>(visitor),
-            std::forward<Variants>(variants)...);
+    inline static decltype(auto)
+    visit(Visitor &&visitor, Variants &&...variants) {
+      return std::visit(std::forward<Visitor>(visitor),
+                        std::forward<Variants>(variants).base()...);
+    }
+
+    template<typename Type, typename Variant>
+    inline static decltype(auto) get_if(Variant *variant) {
+      return std::get_if<Type>(&variant->base());
+    }
+
+    template<typename Type, typename Variant>
+    inline static decltype(auto) get_if(const Variant *variant) {
+      return std::get_if<Type>(&variant->base());
+    }
+
+    template<typename Variant>
+    inline static auto index(const Variant &variant) {
+      return variant.index();
     }
   };
 
@@ -170,19 +200,33 @@ namespace bencode {
                                std::vector, map_proxy>;
 
 #ifdef BENCODE_HAS_BOOST
-  using boost_data = bencode::basic_data<
-    boost::variant, long long, std::string, std::vector, bencode::map_proxy
-  >;
-  using boost_data_view = bencode::basic_data<
-    boost::variant, long long, std::string_view, std::vector, bencode::map_proxy
-  >;
+  using boost_data = basic_data<boost::variant, long long, std::string,
+                                std::vector, map_proxy>;
+  using boost_data_view = basic_data<boost::variant, long long,
+                                     std::string_view, std::vector, map_proxy>;
 
   template<>
   struct variant_traits<boost::variant> {
     template<typename Visitor, typename ...Variants>
-    static void call_visit(Visitor &&visitor, Variants &&...variants) {
-      boost::apply_visitor(std::forward<Visitor>(visitor),
-                           std::forward<Variants>(variants)...);
+    static decltype(auto)
+    visit(Visitor &&visitor, Variants &&...variants) {
+      return boost::apply_visitor(std::forward<Visitor>(visitor),
+                                  std::forward<Variants>(variants).base()...);
+    }
+
+    template<typename Type, typename Variant>
+    inline static decltype(auto) get_if(Variant *variant) {
+      return boost::get<Type>(variant);
+    }
+
+    template<typename Type, typename Variant>
+    inline static decltype(auto) get_if(const Variant *variant) {
+      return boost::get<Type>(variant);
+    }
+
+    template<typename Variant>
+    inline static auto index(const Variant &variant) {
+      return variant.which();
     }
   };
 #endif
@@ -294,67 +338,83 @@ namespace bencode {
       return str_reader<typename Data::string>{}(begin, end, len);
     }
 
-    template<typename Data, typename Iter>
-    typename Data::list decode_list(Iter &begin, Iter end) {
-      assert(*begin == 'l');
-      ++begin;
-
-      typename Data::list value;
-      while(begin != end && *begin != 'e') {
-        value.push_back(basic_decode<Data>(begin, end));
-      }
-
-      if(begin == end)
-        throw std::invalid_argument("unexpected end of string");
-
-      ++begin;
-      return value;
-    }
-
-    template<typename Data, typename Iter>
-    typename Data::dict decode_dict(Iter &begin, Iter end) {
-      assert(*begin == 'd');
-      ++begin;
-
-      typename Data::dict value;
-      while(begin != end && *begin != 'e') {
-        if(!std::isdigit(*begin))
-          throw std::invalid_argument("expected string token");
-
-        auto k = decode_str<Data>(begin, end);
-        auto v = basic_decode<Data>(begin, end);
-        auto result = value.emplace(std::move(k), std::move(v));
-        if(!result.second) {
-          throw std::invalid_argument(
-            "duplicated key in dict: " + std::string(result.first->first)
-          );
-        }
-      }
-
-      if(begin == end)
-        throw std::invalid_argument("unexpected end of string");
-
-      ++begin;
-      return value;
-    }
-
   }
 
   template<typename Data, typename Iter>
   Data basic_decode(Iter &begin, Iter end) {
-    if(begin == end)
-      throw std::invalid_argument("unexpected end of string");
+    using Traits = variant_traits_for<Data>;
+    using list = typename Data::list;
+    using dict = typename Data::dict;
 
-    if(*begin == 'i')
-      return detail::decode_int<Data>(begin, end);
-    else if(*begin == 'l')
-      return detail::decode_list<Data>(begin, end);
-    else if(*begin == 'd')
-      return detail::decode_dict<Data>(begin, end);
-    else if(std::isdigit(*begin))
-      return detail::decode_str<Data>(begin, end);
+    typename Data::string dict_key;
+    Data result;
+    std::stack<Data*> state;
 
-    throw std::invalid_argument("unexpected type");
+    // There are three ways we can store an element we've just parsed:
+    //   1) to the root node
+    //   2) appended to the end of a list
+    //   3) inserted into a dict
+    // We then return a pointer to the thing we've just inserted, which lets
+    // us add that pointer to our node stack. Since we only ever manipulate the
+    // top element of the stack, this pointer should be valid for as long as we
+    // hold onto it.
+    auto store = [&result, &state, &dict_key](auto &&thing) -> Data * {
+      if(state.empty()) {
+        result = std::move(thing);
+        return &result;
+      } else if(auto p = Traits::template get_if<list>(state.top())) {
+        p->push_back(std::move(thing));
+        return &p->back();
+      } else if(auto p = Traits::template get_if<dict>(state.top())) {
+        auto i = p->emplace(std::move(dict_key), std::move(thing));
+        if(!i.second) {
+          throw std::invalid_argument(
+            "duplicated key in dict: " + std::string(i.first->first)
+          );
+        }
+        return &i.first->second;
+      }
+      assert(false && "expected list or dict");
+      return nullptr;
+    };
+
+    do {
+      if(begin == end)
+        throw std::invalid_argument("unexpected end of string");
+
+      if(*begin == 'e') {
+        if(!state.empty()) {
+          ++begin;
+          state.pop();
+        } else {
+          throw std::invalid_argument("unexpected e");
+        }
+      } else {
+        if(!state.empty() && Traits::index(*state.top()) == 3 /* dict */) {
+          if(!std::isdigit(*begin))
+            throw std::invalid_argument("expected string token");
+          dict_key = detail::decode_str<Data>(begin, end);
+          if(begin == end)
+            throw std::invalid_argument("unexpected end of string");
+        }
+
+        if(*begin == 'i') {
+          store(detail::decode_int<Data>(begin, end));
+        } else if(*begin == 'l') {
+          ++begin;
+          state.push(store( list{} ));
+        } else if(*begin == 'd') {
+          ++begin;
+          state.push(store( dict{} ));
+        } else if(std::isdigit(*begin)) {
+          store(detail::decode_str<Data>(begin, end));
+        } else {
+          throw std::invalid_argument("unexpected type");
+        }
+      }
+    } while(!state.empty());
+
+    return result;
   }
 
   template<typename Data, typename Iter>
@@ -533,8 +593,7 @@ namespace bencode {
   template<template<typename ...> typename Variant, typename I, typename S,
            template<typename ...> typename L, template<typename ...> typename D>
   void encode(std::ostream &os, const basic_data<Variant, I, S, L, D> &value) {
-    variant_traits<Variant>::call_visit(detail::encode_visitor(os),
-                                        value.base());
+    variant_traits<Variant>::visit(detail::encode_visitor(os), value);
   }
 
   namespace detail {
