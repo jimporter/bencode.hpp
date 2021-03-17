@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cctype>
+#include <charconv>
 #include <cstddef>
 #include <iostream>
 #include <iterator>
@@ -539,15 +540,30 @@ namespace bencode {
     private:
       std::ostream &os;
     };
+
+    template<typename T>
+    void write_integer(std::ostream &os, T value) {
+      // digits10 tells how many base-10 digits can fully fit in T, so we add 1
+      // for the digit that can only partially fit, plus one more for the
+      // negative sign.
+      char buf[std::numeric_limits<T>::digits10 + 2];
+      auto r = std::to_chars(buf, buf + sizeof(buf), value);
+      if(r.ec != std::errc())
+        throw std::invalid_argument("failed to write integer value");
+      os.write(buf, r.ptr - buf);
+    }
   }
 
-  // TODO: make these use unformatted output?
   inline void encode(std::ostream &os, integer value) {
-    os << "i" << value << "e";
+    os.put('i');
+    detail::write_integer(os, value);
+    os.put('e');
   }
 
   inline void encode(std::ostream &os, const string_view &value) {
-    os << value.size() << ":" << value;
+    detail::write_integer(os, value.size());
+    os.put(':');
+    os.write(value.data(), value.size());
   }
 
   template<typename T>
