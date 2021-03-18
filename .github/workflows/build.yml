@@ -61,7 +61,7 @@ jobs:
         with:
           # Use a POSIX-style path here to make `tar` happy when saving.
           path: boost-${{ matrix.boost-version }}
-          key: ${{ matrix.os }}-boost-${{ matrix.boost-version }}-${{ hashFiles('.github/workflows/build.yml') }}
+          key: ${{ matrix.os }}-boost-${{ matrix.boost-version }}-msvc-${{ matrix.version }}-${{ hashFiles('.github/workflows/build.yml') }}
       - name: Set up Python 3.8
         uses: actions/setup-python@v1
         with:
