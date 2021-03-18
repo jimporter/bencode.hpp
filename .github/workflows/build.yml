@@ -60,8 +60,10 @@ jobs:
         id: cache-boost
         with:
           # Use a POSIX-style path here to make `tar` happy when saving.
-          path: boost-${{ matrix.boost-version }}
-          key: ${{ matrix.os }}-boost-${{ matrix.boost-version }}-msvc-${{ matrix.version }}-${{ hashFiles('.github/workflows/build.yml') }}
+          path: ~/boost-${{ matrix.boost-version }}
+          key: >
+            ${{ matrix.os }}-boost-${{ matrix.boost-version }}-msvc-${{
+            matrix.version }}-${{ hashFiles('.github/workflows/build.yml') }}
       - name: Set up Python 3.8
         uses: actions/setup-python@v1
         with:
@@ -109,7 +111,7 @@ jobs:
       - name: Install Boost ${{ matrix.boost-version }} from binaries
         if: startsWith(matrix.os, 'windows-') && matrix.boost-version
         run: |
-          ${boostroot} = "${pwd}\boost-${{ matrix.boost-version }}"
+          ${boostroot} = "$(Resolve-Path ~)\boost-${{ matrix.boost-version }}"
           ${msvcver} = "${{ matrix.version }}" -replace '(\d+\.\d).*','$1'
           if ("${{ steps.cache-boost.outputs.cache-hit }}" -ne "true" ) {
             ${boostbase} = "https://sourceforge.net/projects/boost/files/boost-binaries"
