@@ -14,6 +14,9 @@ jobs:
       ${{ matrix.os }}, ${{ matrix.compiler }}${{
         matrix.version && format('-{0}', matrix.version) || ''
       }}${{
+        matrix.boost-version &&
+        format(', boost-{0}', matrix.boost-version) || ''
+      }}${{
         matrix.extra-desc && format(', {0}', matrix.extra-desc) || ''
       }}
     runs-on: ${{ matrix.os }}
