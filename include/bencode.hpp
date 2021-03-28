@@ -252,19 +252,19 @@ namespace bencode {
 
   namespace detail {
 
-    template<typename Data, typename Iter>
-    typename Data::integer decode_int(Iter &begin, Iter end) {
+    template<typename Integer, typename Iter>
+    Integer decode_int(Iter &begin, Iter end) {
       assert(*begin == 'i');
       ++begin;
 
-      typename Data::integer positive = 1;
+      Integer positive = 1;
       if(*begin == '-') {
         positive = -1;
         ++begin;
       }
 
       // TODO: handle overflow
-      typename Data::integer value = 0;
+      Integer value = 0;
       while(begin != end && std::isdigit(*begin))
         value = value * 10 + *begin++ - '0';
       if(begin == end)
@@ -323,8 +323,8 @@ namespace bencode {
       }
     };
 
-    template<typename Data, typename Iter>
-    typename Data::string decode_str(Iter &begin, Iter end) {
+    template<typename String, typename Iter>
+    String decode_str(Iter &begin, Iter end) {
       assert(std::isdigit(*begin));
       std::size_t len = 0;
       while(begin != end && std::isdigit(*begin))
@@ -336,7 +336,7 @@ namespace bencode {
         throw std::invalid_argument("expected ':'");
       ++begin;
 
-      return str_reader<typename Data::string>{}(begin, end, len);
+      return str_reader<String>{}(begin, end, len);
     }
 
   }
@@ -344,8 +344,10 @@ namespace bencode {
   template<typename Data, typename Iter>
   Data basic_decode(Iter &begin, Iter end) {
     using Traits = variant_traits_for<Data>;
-    using list = typename Data::list;
-    using dict = typename Data::dict;
+    using integer = typename Data::integer;
+    using string  = typename Data::string;
+    using list    = typename Data::list;
+    using dict    = typename Data::dict;
 
     typename Data::string dict_key;
     Data result;
@@ -394,13 +396,13 @@ namespace bencode {
         if(!state.empty() && Traits::index(*state.top()) == 3 /* dict */) {
           if(!std::isdigit(*begin))
             throw std::invalid_argument("expected string token");
-          dict_key = detail::decode_str<Data>(begin, end);
+          dict_key = detail::decode_str<string>(begin, end);
           if(begin == end)
             throw std::invalid_argument("unexpected end of string");
         }
 
         if(*begin == 'i') {
-          store(detail::decode_int<Data>(begin, end));
+          store(detail::decode_int<integer>(begin, end));
         } else if(*begin == 'l') {
           ++begin;
           state.push(store( list{} ));
@@ -408,7 +410,7 @@ namespace bencode {
           ++begin;
           state.push(store( dict{} ));
         } else if(std::isdigit(*begin)) {
-          store(detail::decode_str<Data>(begin, end));
+          store(detail::decode_str<string>(begin, end));
         } else {
           throw std::invalid_argument("unexpected type");
         }
