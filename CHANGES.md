@@ -3,6 +3,7 @@
 ## v0.3 (in progress)
 
 - Parse bencoded data iteratively to prevent stack buffer overflows
+- Throw exceptions for integer over/underflow
 - Use `std::variant` by default (thus requiring C++17 or newer)
 - Allow customizing the variant type used via `bencode::basic_data`
 - Improve performance of `decode`; decoding is now ~2x as fast for most data

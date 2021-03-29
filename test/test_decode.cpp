@@ -195,6 +195,63 @@ suite<> test_decode("test decoder", [](auto &_) {
     });
   });
 
+  subsuite<>(_, "decoding integers", [](auto &_) {
+    using udata = bencode::basic_data<
+      std::variant, unsigned long long, std::string, std::vector,
+      bencode::map_proxy
+    >;
+
+    _.test("max value", []() {
+      auto value = bencode::decode("i9223372036854775807e");
+      expect(std::get<bencode::integer>(value),
+             equal_to(9223372036854775807LL));
+    });
+
+    _.test("overflow", []() {
+      expect([]() { bencode::decode("i9223372036854775808e"); },
+             thrown<std::invalid_argument>("integer overflow"));
+      expect([]() { bencode::decode("i9323372036854775807e"); },
+             thrown<std::invalid_argument>("integer overflow"));
+      expect([]() { bencode::decode("i92233720368547758070e"); },
+             thrown<std::invalid_argument>("integer overflow"));
+    });
+
+    _.test("min value", []() {
+      auto value = bencode::decode("i-9223372036854775808e");
+      expect(std::get<bencode::integer>(value),
+             equal_to(-9223372036854775807LL - 1));
+    });
+
+    _.test("underflow", []() {
+      expect([]() { bencode::decode("i-9223372036854775809e"); },
+             thrown<std::invalid_argument>("integer underflow"));
+      expect([]() { bencode::decode("i-9323372036854775808e"); },
+             thrown<std::invalid_argument>("integer underflow"));
+      expect([]() { bencode::decode("i-92233720368547758080e"); },
+             thrown<std::invalid_argument>("integer underflow"));
+    });
+
+    _.test("max value (unsigned)", []() {
+      auto value = bencode::basic_decode<udata>("i18446744073709551615e");
+      expect(std::get<udata::integer>(value),
+             equal_to(18446744073709551615ULL));
+    });
+
+    _.test("overflow (unsigned)", []() {
+      expect([]() { bencode::basic_decode<udata>("i18446744073709551616e"); },
+             thrown<std::invalid_argument>("integer overflow"));
+      expect([]() { bencode::basic_decode<udata>("i19446744073709551615e"); },
+             thrown<std::invalid_argument>("integer overflow"));
+      expect([]() { bencode::basic_decode<udata>("i184467440737095516150e"); },
+             thrown<std::invalid_argument>("integer overflow"));
+    });
+
+    _.test("negative value (unsigned)", []() {
+      expect([]() { bencode::basic_decode<udata>("i-42e"); },
+             thrown<std::invalid_argument>("expected unsigned integer"));
+    });
+  });
+
   subsuite<>(_, "error handling", [](auto &_) {
     _.test("unexpected type", []() {
       expect([]() { bencode::decode("x"); },

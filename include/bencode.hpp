@@ -252,28 +252,101 @@ namespace bencode {
 
   namespace detail {
 
+    template<typename Integer>
+    inline void check_overflow(Integer value, Integer digit) {
+      using limits = std::numeric_limits<Integer>;
+      if((value > limits::max() / 10) ||
+         (value == limits::max() / 10 && digit > limits::max() % 10))
+        throw std::invalid_argument("integer overflow");
+    }
+
+    template<typename Integer>
+    inline void check_underflow(Integer value, Integer digit) {
+      using limits = std::numeric_limits<Integer>;
+      if((value < limits::min() / 10) ||
+         (value == limits::min() / 10 && digit < limits::min() % 10))
+        throw std::invalid_argument("integer underflow");
+    }
+
+    template<typename Integer>
+    inline void
+    check_over_underflow(Integer value, Integer digit, Integer sgn) {
+      if(sgn == 1)
+        check_overflow(value, digit);
+      else
+        check_underflow(value, digit);
+    }
+
+    template<typename Integer, typename Iter>
+    inline Integer
+    decode_digits(Iter &begin, Iter end, [[maybe_unused]] Integer sgn = 1) {
+      assert(sgn == 1 || (std::is_signed_v<Integer> &&
+                          std::make_signed_t<Integer>(sgn) == -1));
+
+      Integer value = 0;
+
+      // For performance, decode as many digits as we know will fit within an
+      // `Integer` value, and then if there are any more beyond that, do
+      // proper overflow detection.
+      for(int i = 0; i != std::numeric_limits<Integer>::digits10; i++) {
+        if(begin == end)
+          throw std::invalid_argument("unexpected end of string");
+        if(!std::isdigit(*begin))
+          return value;
+
+        if constexpr(std::is_signed_v<Integer>)
+          value = value * 10 + (*begin++ - '0') * sgn;
+        else
+          value = value * 10 + (*begin++ - '0');
+      }
+      if(begin == end)
+        throw std::invalid_argument("unexpected end of string");
+
+      // We're approaching the limits of what `Integer` can hold. Check for
+      // overflow.
+      if(std::isdigit(*begin)) {
+        Integer digit;
+        if constexpr(std::is_signed_v<Integer>) {
+          digit = (*begin++ - '0') * sgn;
+          check_over_underflow(value, digit, sgn);
+        } else {
+          digit = (*begin++ - '0');
+          check_overflow(value, digit);
+        }
+        value = value * 10 + digit;
+      }
+
+      // Still more digits? That's too many!
+      if(std::isdigit(*begin)) {
+        if(sgn == 1)
+          throw std::invalid_argument("integer overflow");
+        else
+          throw std::invalid_argument("integer underflow");
+      }
+
+      return value;
+    }
+
     template<typename Integer, typename Iter>
     Integer decode_int(Iter &begin, Iter end) {
       assert(*begin == 'i');
       ++begin;
-
-      Integer positive = 1;
+      Integer sgn = 1;
       if(*begin == '-') {
-        positive = -1;
-        ++begin;
+        if constexpr(std::is_unsigned_v<Integer>) {
+          throw std::invalid_argument("expected unsigned integer");
+        } else {
+          sgn = -1;
+          ++begin;
+        }
       }
 
-      // TODO: handle overflow
-      Integer value = 0;
-      while(begin != end && std::isdigit(*begin))
-        value = value * 10 + *begin++ - '0';
-      if(begin == end)
-        throw std::invalid_argument("unexpected end of string");
+      Integer value = decode_digits<Integer>(begin, end, sgn);
       if(*begin != 'e')
         throw std::invalid_argument("expected 'e'");
 
       ++begin;
-      return positive * value;
+      return value;
     }
 
     template<typename String>
@@ -326,10 +399,7 @@ namespace bencode {
     template<typename String, typename Iter>
     String decode_str(Iter &begin, Iter end) {
       assert(std::isdigit(*begin));
-      std::size_t len = 0;
-      while(begin != end && std::isdigit(*begin))
-        len = len * 10 + *begin++ - '0';
-
+      std::size_t len = decode_digits<std::size_t>(begin, end);
       if(begin == end)
         throw std::invalid_argument("unexpected end of string");
       if(*begin != ':')
