@@ -32,6 +32,8 @@ jobs:
              flags: '-Wsuggest-override'}
           - {os: ubuntu-latest, compiler: gcc, version: '10',
              flags: '-Wsuggest-override'}
+          - {os: ubuntu-latest, compiler: gcc, version: '11',
+             flags: '-Wsuggest-override'}
 
           # Clang builds
           - {os: ubuntu-18.04,  compiler: clang, version:  '7'}
@@ -39,21 +41,22 @@ jobs:
           - {os: ubuntu-latest, compiler: clang, version:  '9'}
           - {os: ubuntu-latest, compiler: clang, version: '10'}
           - {os: ubuntu-latest, compiler: clang, version: '11'}
+          - {os: ubuntu-latest, compiler: clang, version: '12'}
 
           # Windows builds
           - {os: windows-2016,   compiler: msvc, version: '14.16',
              boost-version: '1.72.0'}
-          - {os: windows-latest, compiler: msvc, version: '14.28',
+          - {os: windows-latest, compiler: msvc, version: '14.29',
              boost-version: '1.72.0'}
 
           # macOS builds
           - {os: macos-latest, compiler: clang}
 
           # C++20 builds
-          - {os: ubuntu-latest, compiler: gcc, version: '10',
+          - {os: ubuntu-latest, compiler: gcc, version: '11',
              options: '--std=c++20', flags: '-Wsuggest-override',
              boost-version: '1.74.0', extra-desc: 'c++20'}
-          - {os: ubuntu-latest, compiler: clang, version: '11',
+          - {os: ubuntu-latest, compiler: clang, version: '12',
              options: '--std=c++20', boost-version: '1.74.0',
              extra-desc: 'c++20'}
       fail-fast: false
@@ -69,10 +72,10 @@ jobs:
           key: >
             ${{ matrix.os }}-boost-${{ matrix.boost-version }}-msvc-${{
             matrix.version }}-${{ hashFiles('.github/workflows/build.yml') }}
-      - name: Set up Python 3.8
+      - name: Set up Python 3.9
         uses: actions/setup-python@v1
         with:
-          python-version: 3.8
+          python-version: 3.9
       - name: Install Python dependencies
         run: |
           pip install bfg9000
@@ -105,7 +108,7 @@ jobs:
         run: |
           export BOOST_ROOT=${HOME}/boost-${{ matrix.boost-version }}
           export SRCDIR=boost_`echo ${{ matrix.boost-version }} | sed 's/\./_/g'`
-          curl -LO https://dl.bintray.com/boostorg/release/${{ matrix.boost-version }}/source/${SRCDIR}.tar.bz2
+          curl -LO https://sourceforge.net/projects/boost/files/boost/${{ matrix.boost-version }}/${SRCDIR}.tar.bz2
           tar -xjf ${SRCDIR}.tar.bz2
           pushd ${SRCDIR}
           ./bootstrap.sh --prefix=${BOOST_ROOT} --with-libraries=program_options,iostreams
