@@ -119,7 +119,7 @@ You can also construct more-complex data structures:
 ```c++
 bencode::encode(std::cout, bencode::dict{
   {"one", 1},
-  {"two", bencode::list{1, "foo", 2},
+  {"two", bencode::list{1, "foo", 2}},
   {"three", "3"}
 });
 ```
