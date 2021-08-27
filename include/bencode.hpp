@@ -258,6 +258,7 @@ namespace bencode {
     template<typename Integer>
     inline void check_overflow(Integer value, Integer digit) {
       using limits = std::numeric_limits<Integer>;
+      // Wrap `max` in parentheses to work around <windows.h> #defining `max`.
       if((value > (limits::max)() / 10) ||
          (value == (limits::max)() / 10 && digit > (limits::max)() % 10))
         throw std::invalid_argument("integer overflow");
@@ -266,6 +267,7 @@ namespace bencode {
     template<typename Integer>
     inline void check_underflow(Integer value, Integer digit) {
       using limits = std::numeric_limits<Integer>;
+      // As above, work around <windows.h> #defining `min`.
       if((value < (limits::min)() / 10) ||
          (value == (limits::min)() / 10 && digit < (limits::min)() % 10))
         throw std::invalid_argument("integer underflow");
