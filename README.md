@@ -4,8 +4,9 @@
 [![Build status][ci-image]][ci-link]
 
 
-**bencode.hpp** is a small, header-only C++ library for parsing and generating
-[bencoded][wikipedia] data.
+**bencode.hpp** is a small, single-header C++ library for parsing and generating
+[bencoded][wikipedia] data. You might find it useful as an (extremely!) simple
+library for serializing data from your program.
 
 ## Requirements
 
@@ -94,7 +95,7 @@ auto value = std::get<bencode::string_view>(data);
 
 The `bencode::data` type is simply a subclass of `std::variant` (likewise
 `bencode::data_view`). This usually works without issue; however, due to a
-[quirk][inheriting-variant] in the specification, not all standard libraries
+[quirk][inheriting-variant] in the C++ specification, not all standard libraries
 support passing `bencode::data` to `std::visit`. To get around this issue, you
 can call the `base()` method to cast `bencode::data` to a `std::variant`:
 
