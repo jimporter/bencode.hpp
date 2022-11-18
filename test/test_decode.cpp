@@ -235,11 +235,11 @@ suite<> test_decode("test decoder", [](auto &_) {
 
     _.test("overflow", []() {
       expect([]() { bencode::decode("i9223372036854775808e"); },
-             decode_error<std::invalid_argument>("integer overflow", 20));
+             decode_error<std::overflow_error>("integer overflow", 20));
       expect([]() { bencode::decode("i9323372036854775807e"); },
-             decode_error<std::invalid_argument>("integer overflow", 20));
+             decode_error<std::overflow_error>("integer overflow", 20));
       expect([]() { bencode::decode("i92233720368547758070e"); },
-             decode_error<std::invalid_argument>("integer overflow", 20));
+             decode_error<std::overflow_error>("integer overflow", 20));
     });
 
     _.test("min value", []() {
@@ -250,11 +250,11 @@ suite<> test_decode("test decoder", [](auto &_) {
 
     _.test("underflow", []() {
       expect([]() { bencode::decode("i-9223372036854775809e"); },
-             decode_error<std::invalid_argument>("integer underflow", 21));
+             decode_error<std::underflow_error>("integer underflow", 21));
       expect([]() { bencode::decode("i-9323372036854775808e"); },
-             decode_error<std::invalid_argument>("integer underflow", 21));
+             decode_error<std::underflow_error>("integer underflow", 21));
       expect([]() { bencode::decode("i-92233720368547758080e"); },
-             decode_error<std::invalid_argument>("integer underflow", 21));
+             decode_error<std::underflow_error>("integer underflow", 21));
     });
 
     _.test("max value (unsigned)", []() {
@@ -265,31 +265,32 @@ suite<> test_decode("test decoder", [](auto &_) {
 
     _.test("overflow (unsigned)", []() {
       expect([]() { bencode::basic_decode<udata>("i18446744073709551616e"); },
-             decode_error<std::invalid_argument>("integer overflow", 21));
+             decode_error<std::overflow_error>("integer overflow", 21));
       expect([]() { bencode::basic_decode<udata>("i19446744073709551615e"); },
-             decode_error<std::invalid_argument>("integer overflow", 21));
+             decode_error<std::overflow_error>("integer overflow", 21));
       expect([]() { bencode::basic_decode<udata>("i184467440737095516150e"); },
-             decode_error<std::invalid_argument>("integer overflow", 21));
+             decode_error<std::overflow_error>("integer overflow", 21));
     });
 
     _.test("negative value (unsigned)", []() {
       expect(
         []() { bencode::basic_decode<udata>("i-42e"); },
-        decode_error<std::invalid_argument>("expected unsigned integer", 1)
+        decode_error<std::underflow_error>("expected unsigned integer", 1)
       );
     });
   });
 
   subsuite<>(_, "error handling", [](auto &_) {
-    _.test("unexpected type", []() {
+    _.test("unexpected type token", []() {
       expect([]() { bencode::decode("x"); },
-             decode_error<std::invalid_argument>("unexpected type", 0));
+             decode_error<bencode::syntax_error>("unexpected type token", 0));
     });
 
-    _.test("unexpected end of string", []() {
+    _.test("unexpected end of input", []() {
       auto eos = [](std::size_t offset) {
-        return decode_error<std::invalid_argument>("unexpected end of string",
-                                                   offset);
+        return decode_error<bencode::end_of_input_error>(
+          "unexpected end of input", offset
+        );
       };
 
       expect([]() { bencode::decode(""); }, eos(0));
@@ -303,25 +304,34 @@ suite<> test_decode("test decoder", [](auto &_) {
       expect([]() { bencode::decode("d1:ai1e"); }, eos(7));
     });
 
-    _.test("expected 'e'", []() {
+    _.test("expected 'e' token", []() {
       expect([]() { bencode::decode("i123i"); },
-             decode_error<std::invalid_argument>("expected 'e'", 4));
+             decode_error<bencode::syntax_error>("expected 'e' token", 4));
     });
 
-    _.test("expected ':'", []() {
+    _.test("unexpected 'e' token", []() {
+      expect([]() { bencode::decode("e"); },
+             decode_error<bencode::syntax_error>("unexpected 'e' token", 0));
+    });
+
+    _.test("expected ':' token", []() {
       expect([]() { bencode::decode("1abc"); },
-             decode_error<std::invalid_argument>("expected ':'", 1));
+             decode_error<bencode::syntax_error>("expected ':' token", 1));
     });
 
-    _.test("expected string token", []() {
-      expect([]() { bencode::decode("di123ee"); },
-             decode_error<std::invalid_argument>("expected string token", 1));
+    _.test("expected string start token", []() {
+      expect(
+        []() { bencode::decode("di123ee"); },
+        decode_error<bencode::syntax_error>(
+          "expected string start token for dict key", 1
+        )
+      );
     });
 
     _.test("duplicated key", []() {
       expect(
         []() { bencode::decode("d3:fooi1e3:fooi1ee"); },
-        decode_error<std::invalid_argument>("duplicated key in dict: foo", 17)
+        decode_error<bencode::syntax_error>("duplicated key in dict: foo", 17)
       );
     });
   });

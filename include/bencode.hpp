@@ -250,6 +250,14 @@ namespace bencode {
     no_check_eof
   };
 
+  struct syntax_error : std::runtime_error {
+    using std::runtime_error::runtime_error;
+  };
+
+  struct end_of_input_error : syntax_error {
+    end_of_input_error() : syntax_error("unexpected end of input") {}
+  };
+
   class decode_error : public std::runtime_error {
   public:
     decode_error(std::string message, std::size_t offset,
@@ -286,7 +294,7 @@ namespace bencode {
       // Wrap `max` in parentheses to work around <windows.h> #defining `max`.
       if((value > (limits::max)() / 10) ||
          (value == (limits::max)() / 10 && digit > (limits::max)() % 10))
-        throw std::invalid_argument("integer overflow");
+        throw std::overflow_error("integer overflow");
     }
 
     template<typename Integer>
@@ -295,7 +303,7 @@ namespace bencode {
       // As above, work around <windows.h> #defining `min`.
       if((value < (limits::min)() / 10) ||
          (value == (limits::min)() / 10 && digit < (limits::min)() % 10))
-        throw std::invalid_argument("integer underflow");
+        throw std::underflow_error("integer underflow");
     }
 
     template<typename Integer>
@@ -320,7 +328,7 @@ namespace bencode {
       // proper overflow detection.
       for(int i = 0; i != std::numeric_limits<Integer>::digits10; i++) {
         if(begin == end)
-          throw std::invalid_argument("unexpected end of string");
+          throw end_of_input_error();
         if(!std::isdigit(*begin))
           return value;
 
@@ -330,7 +338,7 @@ namespace bencode {
           value = value * 10 + (*begin++ - '0');
       }
       if(begin == end)
-        throw std::invalid_argument("unexpected end of string");
+        throw end_of_input_error();
 
       // We're approaching the limits of what `Integer` can hold. Check for
       // overflow.
@@ -349,9 +357,9 @@ namespace bencode {
       // Still more digits? That's too many!
       if(std::isdigit(*begin)) {
         if(sgn == 1)
-          throw std::invalid_argument("integer overflow");
+          throw std::overflow_error("integer overflow");
         else
-          throw std::invalid_argument("integer underflow");
+          throw std::underflow_error("integer underflow");
       }
 
       return value;
@@ -364,7 +372,7 @@ namespace bencode {
       Integer sgn = 1;
       if(*begin == '-') {
         if constexpr(std::is_unsigned_v<Integer>) {
-          throw std::invalid_argument("expected unsigned integer");
+          throw std::underflow_error("expected unsigned integer");
         } else {
           sgn = -1;
           ++begin;
@@ -373,7 +381,7 @@ namespace bencode {
 
       Integer value = decode_digits<Integer>(begin, end, sgn);
       if(*begin != 'e')
-        throw std::invalid_argument("expected 'e'");
+        throw syntax_error("expected 'e' token");
 
       ++begin;
       return value;
@@ -394,7 +402,7 @@ namespace bencode {
       String call(Iter &begin, Iter end, Size len, std::forward_iterator_tag) {
         if(std::distance(begin, end) < static_cast<std::ptrdiff_t>(len)) {
           begin = end;
-          throw std::invalid_argument("unexpected end of string");
+          throw end_of_input_error();
         }
 
         auto orig = begin;
@@ -407,7 +415,7 @@ namespace bencode {
         String value(len, 0);
         for(Size i = 0; i < len; i++) {
           if(begin == end)
-            throw std::invalid_argument("unexpected end of string");
+            throw end_of_input_error();
           value[i] = *begin++;
         }
         return value;
@@ -421,7 +429,7 @@ namespace bencode {
       std::string_view operator ()(Iter &begin, Iter end, Size len) {
         if(std::distance(begin, end) < static_cast<std::ptrdiff_t>(len)) {
           begin = end;
-          throw std::invalid_argument("unexpected end of string");
+          throw end_of_input_error();
         }
 
         std::string_view value(&*begin, len);
@@ -435,9 +443,9 @@ namespace bencode {
       assert(std::isdigit(*begin));
       std::size_t len = decode_digits<std::size_t>(begin, end);
       if(begin == end)
-        throw std::invalid_argument("unexpected end of string");
+        throw end_of_input_error();
       if(*begin != ':')
-        throw std::invalid_argument("expected ':'");
+        throw syntax_error("expected ':' token");
       ++begin;
 
       return str_reader<String>{}(begin, end, len);
@@ -476,7 +484,7 @@ namespace bencode {
       } else if(auto p = Traits::template get_if<dict>(state.top())) {
         auto i = p->emplace(std::move(dict_key), std::move(thing));
         if(!i.second) {
-          throw std::invalid_argument(
+          throw syntax_error(
             "duplicated key in dict: " + std::string(i.first->first)
           );
         }
@@ -489,22 +497,22 @@ namespace bencode {
     try {
       do {
         if(begin == end)
-          throw std::invalid_argument("unexpected end of string");
+          throw end_of_input_error();
 
         if(*begin == 'e') {
           if(!state.empty()) {
             ++begin;
             state.pop();
           } else {
-            throw std::invalid_argument("unexpected e");
+            throw syntax_error("unexpected 'e' token");
           }
         } else {
           if(!state.empty() && Traits::index(*state.top()) == 3 /* dict */) {
             if(!std::isdigit(*begin))
-              throw std::invalid_argument("expected string token");
+              throw syntax_error("expected string start token for dict key");
             dict_key = detail::decode_str<string>(begin, end);
             if(begin == end)
-              throw std::invalid_argument("unexpected end of string");
+              throw end_of_input_error();
           }
 
           if(*begin == 'i') {
@@ -518,7 +526,7 @@ namespace bencode {
           } else if(std::isdigit(*begin)) {
             store(detail::decode_str<string>(begin, end));
           } else {
-            throw std::invalid_argument("unexpected type");
+            throw syntax_error("unexpected type token");
           }
         }
       } while(!state.empty());
@@ -661,7 +669,7 @@ namespace bencode {
       char buf[std::numeric_limits<T>::digits10 + 2];
       auto r = std::to_chars(buf, buf + sizeof(buf), value);
       if(r.ec != std::errc())
-        throw std::invalid_argument("failed to write integer value");
+        throw std::system_error(std::make_error_code(r.ec));
       os.write(buf, r.ptr - buf);
 #else
       auto s = std::to_string(value);
