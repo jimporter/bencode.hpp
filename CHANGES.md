@@ -7,6 +7,8 @@
 - Allow customizing the variant type used via `bencode::basic_data`
 - Improve performance of `decode`; decoding is now ~2x as fast for most data
   (~1.5x when using views)!
+- When unable to decode data, throw `bencode::decode_error` with the offset
+  where the error occurred
 
 ### Bug fixes
 - Parse bencoded data iteratively to prevent stack buffer overflows

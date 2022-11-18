@@ -91,6 +91,22 @@ auto data = bencode::decode_view(buf);
 auto value = std::get<bencode::string_view>(data);
 ```
 
+#### Errors
+
+If there's an error trying to decode some bencode data, a `decode_error` will be
+thrown. This provides information about where the error occurred via the
+`offset()` member function, as well as access to the underlying exception that
+caused the error, via either `nested_ptr()` or `rethrow_nested()`:
+
+```c++
+  try {
+    auto data = bencode::decode(input);
+  } catch(const bencode::decode_error &e) {
+    // Throw the underlying exception. Maybe catch it and do something with it.
+    e.rethrow_nested();
+  }
+```
+
 ### Visiting
 
 The `bencode::data` type is simply a subclass of `std::variant` (likewise

@@ -250,6 +250,31 @@ namespace bencode {
     no_check_eof
   };
 
+  class decode_error : public std::runtime_error {
+  public:
+    decode_error(std::string message, std::size_t offset,
+                 std::exception_ptr e = {})
+      : runtime_error(message + ", at offset " + std::to_string(offset)),
+        offset_(offset), nested_(e) {}
+
+    [[noreturn]] void rethrow_nested() const {
+      if(nested_)
+        std::rethrow_exception(nested_);
+      std::terminate();
+    }
+
+    std::exception_ptr nested_ptr() const noexcept {
+      return nested_;
+    }
+
+    std::size_t offset() const noexcept {
+      return offset_;
+    }
+  private:
+    std::size_t offset_;
+    std::exception_ptr nested_;
+  };
+
   template<typename Data, typename Iter>
   Data basic_decode(Iter &begin, Iter end);
 
@@ -367,8 +392,10 @@ namespace bencode {
     private:
       template<typename Iter, typename Size>
       String call(Iter &begin, Iter end, Size len, std::forward_iterator_tag) {
-        if(std::distance(begin, end) < static_cast<std::ptrdiff_t>(len))
+        if(std::distance(begin, end) < static_cast<std::ptrdiff_t>(len)) {
+          begin = end;
           throw std::invalid_argument("unexpected end of string");
+        }
 
         auto orig = begin;
         std::advance(begin, len);
@@ -392,8 +419,10 @@ namespace bencode {
     public:
       template<typename Iter, typename Size>
       std::string_view operator ()(Iter &begin, Iter end, Size len) {
-        if(std::distance(begin, end) < static_cast<std::ptrdiff_t>(len))
+        if(std::distance(begin, end) < static_cast<std::ptrdiff_t>(len)) {
+          begin = end;
           throw std::invalid_argument("unexpected end of string");
+        }
 
         std::string_view value(&*begin, len);
         std::advance(begin, len);
@@ -424,6 +453,7 @@ namespace bencode {
     using list    = typename Data::list;
     using dict    = typename Data::dict;
 
+    Iter orig_begin = begin;
     typename Data::string dict_key;
     Data result;
     std::stack<Data*> state;
@@ -456,42 +486,46 @@ namespace bencode {
       return nullptr;
     };
 
-    do {
-      if(begin == end)
-        throw std::invalid_argument("unexpected end of string");
+    try {
+      do {
+        if(begin == end)
+          throw std::invalid_argument("unexpected end of string");
 
-      if(*begin == 'e') {
-        if(!state.empty()) {
-          ++begin;
-          state.pop();
+        if(*begin == 'e') {
+          if(!state.empty()) {
+            ++begin;
+            state.pop();
+          } else {
+            throw std::invalid_argument("unexpected e");
+          }
         } else {
-          throw std::invalid_argument("unexpected e");
-        }
-      } else {
-        if(!state.empty() && Traits::index(*state.top()) == 3 /* dict */) {
-          if(!std::isdigit(*begin))
-            throw std::invalid_argument("expected string token");
-          dict_key = detail::decode_str<string>(begin, end);
-          if(begin == end)
-            throw std::invalid_argument("unexpected end of string");
-        }
+          if(!state.empty() && Traits::index(*state.top()) == 3 /* dict */) {
+            if(!std::isdigit(*begin))
+              throw std::invalid_argument("expected string token");
+            dict_key = detail::decode_str<string>(begin, end);
+            if(begin == end)
+              throw std::invalid_argument("unexpected end of string");
+          }
 
-        if(*begin == 'i') {
-          store(detail::decode_int<integer>(begin, end));
-        } else if(*begin == 'l') {
-          ++begin;
-          state.push(store( list{} ));
-        } else if(*begin == 'd') {
-          ++begin;
-          state.push(store( dict{} ));
-        } else if(std::isdigit(*begin)) {
-          store(detail::decode_str<string>(begin, end));
-        } else {
-          throw std::invalid_argument("unexpected type");
+          if(*begin == 'i') {
+            store(detail::decode_int<integer>(begin, end));
+          } else if(*begin == 'l') {
+            ++begin;
+            state.push(store( list{} ));
+          } else if(*begin == 'd') {
+            ++begin;
+            state.push(store( dict{} ));
+          } else if(std::isdigit(*begin)) {
+            store(detail::decode_str<string>(begin, end));
+          } else {
+            throw std::invalid_argument("unexpected type");
+          }
         }
-      }
-    } while(!state.empty());
-
+      } while(!state.empty());
+    } catch(const std::exception &e) {
+      throw decode_error(e.what(), std::distance(orig_begin, begin),
+                         std::current_exception());
+    }
     return result;
   }
 
