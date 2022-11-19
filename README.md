@@ -111,9 +111,10 @@ caused the error, via either `nested_ptr()` or `rethrow_nested()`:
 
 The `bencode::data` type is simply a subclass of `std::variant` (likewise
 `bencode::data_view`). This usually works without issue; however, due to a
-[quirk][inheriting-variant] in the C++ specification, not all standard libraries
-support passing `bencode::data` to `std::visit`. To get around this issue, you
-can call the `base()` method to cast `bencode::data` to a `std::variant`:
+[quirk][inheriting-variant] in the C++ specification (resolved in C++23), not
+all standard libraries support passing `bencode::data` to `std::visit`. To get
+around this issue, you can call the `base()` method to cast `bencode::data` to a
+`std::variant`:
 
 ```c++
 std::visit(visitor_fn, my_data.base());
@@ -223,4 +224,4 @@ This library is licensed under the [BSD 3-Clause license](LICENSE).
 [mettle]: https://jimporter.github.io/mettle/
 [ppa]: https://launchpad.net/~jimporter/+archive/ubuntu/stable
 [bfg9000]: https://jimporter.github.io/bfg9000/
-[inheriting-variant]: http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2020/p2162r1.html
+[inheriting-variant]: https://wg21.link/p2162
