@@ -220,7 +220,7 @@ This library is licensed under the [BSD 3-Clause license](LICENSE).
 [clang]: http://clang.llvm.org/
 [gcc]: https://gcc.gnu.org/
 [msvc]: https://www.visualstudio.com/
-[library-fundamentals]: http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4480.html
+[library-fundamentals]: https://wg21.link/n4480
 [mettle]: https://jimporter.github.io/mettle/
 [ppa]: https://launchpad.net/~jimporter/+archive/ubuntu/stable
 [bfg9000]: https://jimporter.github.io/bfg9000/
