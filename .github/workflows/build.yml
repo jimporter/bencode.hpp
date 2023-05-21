@@ -163,7 +163,7 @@ jobs:
         if: "!startsWith(matrix.os, 'windows-')"
         run: |
           pushd mettle
-          9k build --backend=ninja --prefix=${HOME} --vendorize
+          9k build --backend=ninja --prefix=${HOME}
           cd build
           ninja install
           popd
@@ -175,7 +175,7 @@ jobs:
         if: startsWith(matrix.os, 'windows-')
         run: |
           pushd mettle
-          9k build --backend=ninja --prefix=$env:HOME\mettle --vendorize
+          9k build --backend=ninja --prefix=$env:HOME\mettle
           cd build
           ninja install
           popd
