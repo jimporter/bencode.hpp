@@ -24,9 +24,9 @@ jobs:
       matrix:
         include:
           # GCC builds
-          - {os: ubuntu-latest, compiler: gcc, version:  '7',
+          - {os: ubuntu-20.04, compiler: gcc, version:   '7',
              flags: '-Wsuggest-override'}
-          - {os: ubuntu-latest, compiler: gcc, version:  '8',
+          - {os: ubuntu-20.04, compiler: gcc, version:   '8',
              flags: '-Wsuggest-override'}
           - {os: ubuntu-latest, compiler: gcc, version:  '9',
              flags: '-Wsuggest-override'}
@@ -34,16 +34,20 @@ jobs:
              flags: '-Wsuggest-override'}
           - {os: ubuntu-latest, compiler: gcc, version: '11',
              flags: '-Wsuggest-override'}
-          - {os: ubuntu-22.04,  compiler: gcc, version: '12',
+          - {os: ubuntu-latest, compiler: gcc, version: '12',
+             flags: '-Wsuggest-override'}
+          - {os: ubuntu-latest, compiler: gcc, version: '13',
              flags: '-Wsuggest-override'}
 
           # Clang builds
-          - {os: ubuntu-latest, compiler: clang, version:  '9'}
-          - {os: ubuntu-latest, compiler: clang, version: '10'}
-          - {os: ubuntu-latest, compiler: clang, version: '11'}
-          - {os: ubuntu-latest, compiler: clang, version: '12'}
+          - {os: ubuntu-20.04,  compiler: clang, version:  '9'}
+          - {os: ubuntu-20.04,  compiler: clang, version: '10'}
+          - {os: ubuntu-20.04,  compiler: clang, version: '11'}
+          - {os: ubuntu-20.04,  compiler: clang, version: '12'}
           - {os: ubuntu-latest, compiler: clang, version: '13'}
           - {os: ubuntu-latest, compiler: clang, version: '14'}
+          - {os: ubuntu-latest, compiler: clang, version: '15'}
+          - {os: ubuntu-latest, compiler: clang, version: '16'}
 
           # Windows builds
           - {os: windows-2019,   compiler: msvc, version: '14.16',  # VS 2017
@@ -57,11 +61,11 @@ jobs:
           - {os: macos-latest, compiler: clang}
 
           # C++20 builds
-          - {os: ubuntu-22.04, compiler: gcc, version: '12',
+          - {os: ubuntu-latest, compiler: gcc, version: '13',
              options: '--std=c++20', flags: '-Wsuggest-override',
-             boost-version: '1.80.0', extra-desc: 'c++20'}
-          - {os: ubuntu-latest, compiler: clang, version: '14',
-             options: '--std=c++20', boost-version: '1.80.0',
+             boost-version: '1.78.0', extra-desc: 'c++20'}
+          - {os: ubuntu-latest, compiler: clang, version: '16',
+             options: '--std=c++20', boost-version: '1.78.0',
              extra-desc: 'c++20'}
       fail-fast: false
 
