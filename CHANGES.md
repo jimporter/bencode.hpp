@@ -1,6 +1,6 @@
 # Changes
 
-## v0.3 (in progress)
+## v1.0.0 (2023-05-21)
 
 ### New features
 - Use `std::variant` by default (thus requiring C++17 or newer)
