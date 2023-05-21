@@ -14,10 +14,14 @@
 - Parse bencoded data iteratively to prevent stack buffer overflows
 - Throw exceptions for integer over/underflow
 
+---
+
 ## v0.2.1 (2020-12-03)
 
 ### Bug fixes
 - Require `bfg9000` v0.6 for builds/tests
+
+---
 
 ## v0.2 (2019-11-26)
 
@@ -25,6 +29,8 @@
 - Use `std::string_view` if available
 - Install a `pkg-config` `.pc` file that sets the compiler's include path as
   needed
+
+---
 
 ## v0.1 (2016-07-01)
 
