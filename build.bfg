@@ -1,7 +1,7 @@
 # -*- python -*-
 
 bfg9000_required_version('>=0.7.0')
-project('bencodehpp', version='1.0.0')
+project('bencodehpp', version='1.1.0-dev')
 
 global_options([opts.std(argv.std)], lang='c++')
 
