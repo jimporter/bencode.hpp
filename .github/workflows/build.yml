@@ -62,10 +62,10 @@ jobs:
 
           # C++20 builds
           - {os: ubuntu-latest, compiler: gcc, version: '13',
-             options: '--std=c++20', flags: '-Wsuggest-override',
+             common-options: '--std=c++20', flags: '-Wsuggest-override',
              boost-version: '1.78.0', extra-desc: 'c++20'}
           - {os: ubuntu-latest, compiler: clang, version: '16',
-             options: '--std=c++20', boost-version: '1.78.0',
+             common-options: '--std=c++20', boost-version: '1.78.0',
              extra-desc: 'c++20'}
       fail-fast: false
 
@@ -167,7 +167,7 @@ jobs:
         if: "!startsWith(matrix.os, 'windows-')"
         run: |
           pushd mettle
-          9k build --backend=ninja --prefix=${HOME}
+          9k build --backend=ninja --prefix=${HOME} ${{ matrix.common-options }}
           cd build
           ninja install
           popd
@@ -179,7 +179,7 @@ jobs:
         if: startsWith(matrix.os, 'windows-')
         run: |
           pushd mettle
-          9k build --backend=ninja --prefix=$env:HOME\mettle
+          9k build --backend=ninja --prefix=$env:HOME\mettle ${{ matrix.common-options }}
           cd build
           ninja install
           popd
@@ -189,6 +189,6 @@ jobs:
           echo "CXXFLAGS=/WX ${{ matrix.flags }}" >> ${env:GITHUB_ENV}
       - name: Run tests
         run: |
-          9k build --backend=ninja ${{ matrix.options }}
+          9k build --backend=ninja ${{ matrix.common-options }}
           cd build
           ninja test
