@@ -1,6 +1,6 @@
 # Changes
 
-## v1.0.1 (in progress)
+## v1.0.1 (2023-07-01)
 
 ### Bug fixes
 - Fix deprecation warning when configuring
