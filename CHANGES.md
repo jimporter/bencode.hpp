@@ -1,5 +1,12 @@
 # Changes
 
+## v1.0.1 (in progress)
+
+### Bug fixes
+- Fix deprecation warning when configuring
+
+---
+
 ## v1.0.0 (2023-05-21)
 
 ### New features

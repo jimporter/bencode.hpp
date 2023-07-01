@@ -12,7 +12,7 @@ install(includes)
 test_files = find_paths('test/**/*.cpp')
 
 try:
-    libmettle = package('mettle', headers=['mettle.hpp'])
+    libmettle = package('mettle')
     mettle = test_driver(['mettle', '--output=verbose'])
 
     for src in test_files:
