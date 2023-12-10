@@ -213,9 +213,8 @@ This library is licensed under the [BSD 3-Clause license](LICENSE).
 
 [release-image]: https://img.shields.io/github/release/jimporter/bencode.hpp.svg
 [release-link]: https://github.com/jimporter/bencode.hpp/releases/latest
-[ci-image]: https://github.com/jimporter/bencode.hpp/workflows/build/badge.svg
-[ci-link]: https://github.com/jimporter/bencode.hpp/actions?query=branch%3Amaster+workflow%3Abuild
-
+[ci-image]: https://github.com/jimporter/bencode.hpp/actions/workflows/build.yml/badge.svg
+[ci-link]: https://github.com/jimporter/bencode.hpp/actions/workflows/build.yml?query=branch%3Amaster
 [wikipedia]: https://en.wikipedia.org/wiki/Bencode
 [clang]: http://clang.llvm.org/
 [gcc]: https://gcc.gnu.org/
