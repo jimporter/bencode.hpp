@@ -187,11 +187,6 @@ namespace bencode {
       return std::get_if<Type>(&variant->base());
     }
 
-    template<typename Type, typename Variant>
-    inline static decltype(auto) get_if(const Variant *variant) {
-      return std::get_if<Type>(&variant->base());
-    }
-
     template<typename Variant>
     inline static auto index(const Variant &variant) {
       return variant.index();
@@ -220,11 +215,6 @@ namespace bencode {
 
     template<typename Type, typename Variant>
     inline static decltype(auto) get_if(Variant *variant) {
-      return boost::get<Type>(variant);
-    }
-
-    template<typename Type, typename Variant>
-    inline static decltype(auto) get_if(const Variant *variant) {
       return boost::get<Type>(variant);
     }
 
