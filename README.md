@@ -43,7 +43,8 @@ won't generate a `bencodehpp.pc` file for `pkg-config` to use.)
 Bencode has four data types: `integer`, `string`, `list`, and `dict`. These
 correspond to `long long`, `std::string`, `std::vector<bencode::data>`, and
 `std::map<std::string, bencode::data>`, respectively. Since the data types are
-determined at runtime, these are all stored in a variant type called `data`.
+determined at runtime, these are all stored in a variant type called `data` (a
+subclass of `std::variant`).
 
 Note: Technically, `bencode::dict` is a `map_proxy` object, since `std::map`
 doesn't support holding elements of incomplete type (though some implementations
@@ -107,14 +108,42 @@ caused the error, via either `nested_ptr()` or `rethrow_nested()`:
   }
 ```
 
-### Visiting
+### Reading Data
 
-The `bencode::data` type is simply a subclass of `std::variant` (likewise
-`bencode::data_view`). This usually works without issue; however, due to a
-[quirk][inheriting-variant] in the C++ specification (resolved in C++23), not
-all standard libraries support passing `bencode::data` to `std::visit`. To get
-around this issue, you can call the `base()` method to cast `bencode::data` to a
-`std::variant`:
+Once you have a `data` (or `data_view`) object, it's easy to read from it. For
+simple cases, you can just use `std::get` to retrieve the value out of the
+variant:
+
+```c++
+auto data = bencode::decode("i42e");
+auto value = std::get<bencode::integer>(data);
+```
+
+In addition, you can use the `operator []` or `at` member functions to get the
+requested element from a `list` value (if you pass an integer) or `dict` value
+(if you pass a string):
+
+```c++
+auto data = bencode::decode("d3:fooi42ee");
+auto elem = data["foo"];
+auto value = std::get<bencode::integer>(elem);
+```
+
+These member functions simply forward on to the corresponding functions for the
+underlying container, and are (roughly) equivalent to:
+
+```c++
+auto elem = std::get<bencode::dict>(data)["foo"];
+```
+
+#### Visiting
+
+Since `bencode::data` type is simply a subclass of `std::variant` (likewise
+`bencode::data_view`), you can usually just call `std::visit` on it.
+Unfortunately, due to a [quirk][inheriting-variant] in the C++ specification
+(resolved in C++23), not all standard libraries support passing `bencode::data`
+to `std::visit`. To get around this issue, you can call the `base()` method to
+cast `bencode::data` to a `std::variant`:
 
 ```c++
 std::visit(visitor_fn, my_data.base());

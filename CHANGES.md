@@ -1,5 +1,13 @@
 # Changes
 
+## v1.1.0 (in progress)
+
+### New features
+- `bencode::data` (and `bencode::basic_data`, etc) now support `operator []` and
+  `at` member functions to get list/dictionary elements
+
+---
+
 ## v1.0.1 (2023-07-01)
 
 ### Bug fixes

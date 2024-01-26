@@ -35,11 +35,15 @@ namespace bencode {
 
 #define BENCODE_MAP_PROXY_FN_1(name, specs)                                   \
   template<typename T>                                                        \
-  auto name(T &&t) specs { return proxy_->name(std::forward<T>(t)); }
+  decltype(auto) name(T &&t) specs {                                          \
+    return proxy_->name(std::forward<T>(t));                                  \
+  }
 
 #define BENCODE_MAP_PROXY_FN_N(name, specs)                                   \
   template<typename ...T>                                                     \
-  auto name(T &&...t) specs { return proxy_->name(std::forward<T>(t)...); }
+  decltype(auto) name(T &&...t) specs {                                       \
+    return proxy_->name(std::forward<T>(t)...);                               \
+  }
 
   // A proxy of std::map, since the standard doesn't require that map support
   // incomplete types.
@@ -147,10 +151,25 @@ namespace bencode {
   BENCODE_MAP_PROXY_RELOP(>)
   BENCODE_MAP_PROXY_RELOP(<)
 
+#define BENCODE_DATA_GETTER(func, impl, arg_type, container_type)             \
+  basic_data & func(const arg_type &key) & {                                  \
+    return impl<container_type>(*this, key);                                  \
+  }                                                                           \
+  basic_data && func(const arg_type &key) && {                                \
+    return std::move(impl<container_type>(std::move(*this), key));            \
+  }                                                                           \
+  const basic_data & func(const arg_type &key) const & {                      \
+    return impl<container_type>(*this, key);                                  \
+  }                                                                           \
+  const basic_data && func(const arg_type &key) const && {                    \
+    return std::move(impl<container_type>(std::move(*this), key));            \
+  }
+
   template<template<typename ...> typename Variant, typename I, typename S,
            template<typename ...> typename L, template<typename ...> typename D>
-  struct basic_data : Variant<I, S, L<basic_data<Variant, I, S, L, D>>,
-                              D<S, basic_data<Variant, I, S, L, D>>> {
+  class basic_data : public Variant<I, S, L<basic_data<Variant, I, S, L, D>>,
+                                    D<S, basic_data<Variant, I, S, L, D>>> {
+  public:
     using integer = I;
     using string = S;
     using list = L<basic_data>;
@@ -160,8 +179,30 @@ namespace bencode {
     using base_type::base_type;
 
     base_type & base() & { return *this; }
-    base_type && base() && { return *this; }
+    base_type && base() && { return std::move(*this); }
     const base_type & base() const & { return *this; }
+    const base_type && base() const && { return std::move(*this); }
+
+    // The below wouldn't need macros if we had "deducing `this`"...
+    BENCODE_DATA_GETTER(at,          at_impl,    integer, list)
+    BENCODE_DATA_GETTER(at,          at_impl,    string,  dict)
+    BENCODE_DATA_GETTER(operator [], index_impl, integer, list)
+    BENCODE_DATA_GETTER(operator [], index_impl, string,  dict)
+
+  private:
+    template<typename Type, typename Self, typename Key>
+    static inline decltype(auto) at_impl(Self &&self, Key &&key) {
+      return variant_traits<Variant>::template get<Type>(
+        std::forward<Self>(self)
+      ).at(std::forward<Key>(key));
+    }
+
+    template<typename Type, typename Self, typename Key>
+    static inline decltype(auto) index_impl(Self &&self, Key &&key) {
+      return variant_traits<Variant>::template get<Type>(
+        std::forward<Self>(self)
+      )[std::forward<Key>(key)];
+    }
   };
 
   template<typename T>
@@ -180,6 +221,11 @@ namespace bencode {
     visit(Visitor &&visitor, Variants &&...variants) {
       return std::visit(std::forward<Visitor>(visitor),
                         std::forward<Variants>(variants).base()...);
+    }
+
+    template<typename Type, typename Variant>
+    inline static decltype(auto) get(Variant &&variant) {
+      return std::get<Type>(std::forward<Variant>(variant).base());
     }
 
     template<typename Type, typename Variant>
@@ -211,6 +257,11 @@ namespace bencode {
     visit(Visitor &&visitor, Variants &&...variants) {
       return boost::apply_visitor(std::forward<Visitor>(visitor),
                                   std::forward<Variants>(variants).base()...);
+    }
+
+    template<typename Type, typename Variant>
+    inline static decltype(auto) get(Variant &&variant) {
+      return boost::get<Type>(std::forward<Variant>(variant));
     }
 
     template<typename Type, typename Variant>
