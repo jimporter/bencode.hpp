@@ -108,7 +108,7 @@ buffer. Simply append `_view` to the functions/types to take advantage of this:
 
 ```c++
 std::string buf = "3:foo";
-auto data = bencode::decode_view(buf);
+auto data = bencode::decode_view_all(buf);
 auto value = std::get<bencode::string_view>(data);
 ```
 
@@ -121,7 +121,7 @@ caused the error, via either `nested_ptr()` or `rethrow_nested()`:
 
 ```c++
   try {
-    auto data = bencode::decode(input);
+    auto data = bencode::decode_all(input);
   } catch(const bencode::decode_error &e) {
     // Throw the underlying exception. Maybe catch it and do something with it.
     e.rethrow_nested();
@@ -135,7 +135,7 @@ simple cases, you can just use `std::get` to retrieve the value out of the
 variant:
 
 ```c++
-auto data = bencode::decode("i42e");
+auto data = bencode::decode_all("i42e");
 auto value = std::get<bencode::integer>(data);
 ```
 
@@ -144,7 +144,7 @@ requested element from a `list` value (if you pass an integer) or `dict` value
 (if you pass a string):
 
 ```c++
-auto data = bencode::decode("d3:fooi42ee");
+auto data = bencode::decode_all("d3:fooi42ee");
 auto elem = data["foo"];
 auto value = std::get<bencode::integer>(elem);
 ```
@@ -205,8 +205,8 @@ These functions work the same as the regular bencode.hpp versions, but are
 prefixed with `boost_`:
 
 ```c++
-bencode::boost_data d = bencode::boost_decode(msg);
-bencode::boost_data_view dv = bencode::boost_decode_view(msg);
+bencode::boost_data d = bencode::boost_decode_all(msg);
+bencode::boost_data_view dv = bencode::boost_decode_view_all(msg);
 // ...
 ```
 
@@ -223,7 +223,7 @@ using cool_data = bencode::basic_data<
   cool_variant, long long, std::string, std::vector, bencode::map_proxy
 >;
 
-auto result = bencode::basic_decode<cool_data>(message);
+auto result = bencode::basic_decode_all<cool_data>(message);
 ```
 
 Note that when using a different variant type, you'll likely want to create a
