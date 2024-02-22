@@ -1,10 +1,16 @@
 # Changes
 
-## v1.1.0 (in progress)
+## v2.0.0 (in progress)
 
 ### New features
 - `bencode::data` (and `bencode::basic_data`, etc) now support `operator []` and
   `at` member functions to get list/dictionary elements
+- Add `bencode::decode_all` and friends to throw an exception if there's any
+  data available after the bencoded object
+
+### Breaking changes
+- To decode strings, you must now call `bencode::decode_all` (or pass an
+  iterator pair to `bencode::decode`)
 
 ---
 

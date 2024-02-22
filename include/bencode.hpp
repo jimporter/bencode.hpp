@@ -489,179 +489,174 @@ namespace bencode {
       return str_reader<String>{}(begin, end, len);
     }
 
-  }
+    template<typename Data, typename Iter>
+    Data do_decode(Iter &begin, Iter end, bool all) {
+      using Traits = variant_traits_for<Data>;
+      using integer = typename Data::integer;
+      using string  = typename Data::string;
+      using list    = typename Data::list;
+      using dict    = typename Data::dict;
 
-  template<typename Data, typename Iter>
-  Data basic_decode(Iter &begin, Iter end) {
-    using Traits = variant_traits_for<Data>;
-    using integer = typename Data::integer;
-    using string  = typename Data::string;
-    using list    = typename Data::list;
-    using dict    = typename Data::dict;
+      Iter orig_begin = begin;
+      typename Data::string dict_key;
+      Data result;
+      std::stack<Data*> state;
 
-    Iter orig_begin = begin;
-    typename Data::string dict_key;
-    Data result;
-    std::stack<Data*> state;
-
-    // There are three ways we can store an element we've just parsed:
-    //   1) to the root node
-    //   2) appended to the end of a list
-    //   3) inserted into a dict
-    // We then return a pointer to the thing we've just inserted, which lets
-    // us add that pointer to our node stack. Since we only ever manipulate the
-    // top element of the stack, this pointer should be valid for as long as we
-    // hold onto it.
-    auto store = [&result, &state, &dict_key](auto &&thing) -> Data * {
-      if(state.empty()) {
-        result = std::move(thing);
-        return &result;
-      } else if(auto p = Traits::template get_if<list>(state.top())) {
-        p->push_back(std::move(thing));
-        return &p->back();
-      } else if(auto p = Traits::template get_if<dict>(state.top())) {
-        auto i = p->emplace(std::move(dict_key), std::move(thing));
-        if(!i.second) {
-          throw syntax_error(
-            "duplicated key in dict: " + std::string(i.first->first)
-          );
+      // There are three ways we can store an element we've just parsed:
+      //   1) to the root node
+      //   2) appended to the end of a list
+      //   3) inserted into a dict
+      // We then return a pointer to the thing we've just inserted, which lets
+      // us add that pointer to our node stack. Since we only ever manipulate
+      // the top element of the stack, this pointer should be valid for as long
+      // as we hold onto it.
+      auto store = [&result, &state, &dict_key](auto &&thing) -> Data * {
+        if(state.empty()) {
+          result = std::move(thing);
+          return &result;
+        } else if(auto p = Traits::template get_if<list>(state.top())) {
+          p->push_back(std::move(thing));
+          return &p->back();
+        } else if(auto p = Traits::template get_if<dict>(state.top())) {
+          auto i = p->emplace(std::move(dict_key), std::move(thing));
+          if(!i.second) {
+            throw syntax_error(
+              "duplicated key in dict: " + std::string(i.first->first)
+            );
+          }
+          return &i.first->second;
         }
-        return &i.first->second;
+        assert(false && "expected list or dict");
+        return nullptr;
+      };
+
+      try {
+        do {
+          if(begin == end)
+            throw end_of_input_error();
+
+          if(*begin == 'e') {
+            if(!state.empty()) {
+              ++begin;
+              state.pop();
+            } else {
+              throw syntax_error("unexpected 'e' token");
+            }
+          } else {
+            if(!state.empty() && Traits::index(*state.top()) == 3 /* dict */) {
+              if(!std::isdigit(*begin))
+                throw syntax_error("expected string start token for dict key");
+              dict_key = detail::decode_str<string>(begin, end);
+              if(begin == end)
+                throw end_of_input_error();
+            }
+
+            if(*begin == 'i') {
+              store(detail::decode_int<integer>(begin, end));
+            } else if(*begin == 'l') {
+              ++begin;
+              state.push(store( list{} ));
+            } else if(*begin == 'd') {
+              ++begin;
+              state.push(store( dict{} ));
+            } else if(std::isdigit(*begin)) {
+              store(detail::decode_str<string>(begin, end));
+            } else {
+              throw syntax_error("unexpected type token");
+            }
+          }
+        } while(!state.empty());
+
+        if (all && begin != end)
+          throw syntax_error("extraneous character");
+      } catch(const std::exception &e) {
+        throw decode_error(e.what(), std::distance(orig_begin, begin),
+                           std::current_exception());
       }
-      assert(false && "expected list or dict");
-      return nullptr;
-    };
 
-    try {
-      do {
-        if(begin == end)
-          throw end_of_input_error();
-
-        if(*begin == 'e') {
-          if(!state.empty()) {
-            ++begin;
-            state.pop();
-          } else {
-            throw syntax_error("unexpected 'e' token");
-          }
-        } else {
-          if(!state.empty() && Traits::index(*state.top()) == 3 /* dict */) {
-            if(!std::isdigit(*begin))
-              throw syntax_error("expected string start token for dict key");
-            dict_key = detail::decode_str<string>(begin, end);
-            if(begin == end)
-              throw end_of_input_error();
-          }
-
-          if(*begin == 'i') {
-            store(detail::decode_int<integer>(begin, end));
-          } else if(*begin == 'l') {
-            ++begin;
-            state.push(store( list{} ));
-          } else if(*begin == 'd') {
-            ++begin;
-            state.push(store( dict{} ));
-          } else if(std::isdigit(*begin)) {
-            store(detail::decode_str<string>(begin, end));
-          } else {
-            throw syntax_error("unexpected type token");
-          }
-        }
-      } while(!state.empty());
-    } catch(const std::exception &e) {
-      throw decode_error(e.what(), std::distance(orig_begin, begin),
-                         std::current_exception());
+      return result;
     }
-    return result;
+
+    template<typename Data>
+    Data do_decode(std::istream &s, eof_behavior e, bool all) {
+      static_assert(!std::is_same_v<typename Data::string, std::string_view>,
+                    "reading from stream not supported for data views");
+
+      std::istreambuf_iterator<char> begin(s), end;
+      auto result = detail::do_decode<Data>(begin, end, all);
+      // If we hit EOF, update the parent stream.
+      if(e == check_eof && begin == end)
+        s.setstate(std::ios_base::eofbit);
+      return result;
+    }
+
   }
 
   template<typename Data, typename Iter>
-  inline Data basic_decode(const Iter &begin, Iter end) {
+  inline Data basic_decode(Iter &begin, Iter end) {
+    return detail::do_decode<data>(begin, end, false);
+  }
+
+  template<typename Data>
+  inline Data basic_decode(std::istream &s, eof_behavior e = check_eof) {
+    return detail::do_decode<Data>(s, e, false);
+  }
+
+  template<typename Data, typename Iter>
+  inline Data basic_decode_all(const Iter &begin, Iter end) {
     Iter b(begin);
-    return basic_decode<Data>(b, end);
+    return detail::do_decode<Data>(b, end, true);
   }
 
   template<typename Data>
-  inline Data basic_decode(const string_view &s) {
-    return basic_decode<Data>(s.begin(), s.end());
+  inline Data basic_decode_all(const string_view &s) {
+    return basic_decode_all<Data>(s.begin(), s.end());
   }
 
   template<typename Data>
-  Data basic_decode(std::istream &s, eof_behavior e = check_eof) {
-    static_assert(!std::is_same_v<typename Data::string, std::string_view>,
-                  "reading from stream not supported for data views");
-
-    std::istreambuf_iterator<char> begin(s), end;
-    auto result = basic_decode<Data>(begin, end);
-    // If we hit EOF, update the parent stream.
-    if(e == check_eof && begin == end)
-      s.setstate(std::ios_base::eofbit);
-    return result;
+  inline Data basic_decode_all(std::istream &s, eof_behavior e = check_eof) {
+    return detail::do_decode<Data>(s, e, true);
   }
 
-  template<typename T>
-  inline data decode(T &begin, T end) {
-    return basic_decode<data>(begin, end);
+  template<typename ...T>
+  inline data decode(T &&...t) {
+    return basic_decode<data>(std::forward<T>(t)...);
   }
 
-  template<typename T>
-  inline data decode(const T &begin, T end) {
-    return basic_decode<data>(begin, end);
+  template<typename ...T>
+  inline data decode_all(T &&...t) {
+    return basic_decode_all<data>(std::forward<T>(t)...);
   }
 
-  inline data decode(const string_view &s) {
-    return basic_decode<data>(s.begin(), s.end());
+  template<typename ...T>
+  inline data_view decode_view(T &&...t) {
+    return basic_decode<data_view>(std::forward<T>(t)...);
   }
 
-  inline data decode(std::istream &s, eof_behavior e = check_eof) {
-    return basic_decode<data>(s, e);
-  }
-
-  template<typename T>
-  inline data_view decode_view(T &begin, T end) {
-    return basic_decode<data_view>(begin, end);
-  }
-
-  template<typename T>
-  inline data_view decode_view(const T &begin, T end) {
-    return basic_decode<data_view>(begin, end);
-  }
-
-  inline data_view decode_view(const string_view &s) {
-    return basic_decode<data_view>(s.begin(), s.end());
+  template<typename ...T>
+  inline data_view decode_view_all(T &&...t) {
+    return basic_decode_all<data_view>(std::forward<T>(t)...);
   }
 
 #ifdef BENCODE_HAS_BOOST
-  template<typename T>
-  inline boost_data boost_decode(T &begin, T end) {
-    return basic_decode<boost_data>(begin, end);
+  template<typename ...T>
+  inline boost_data boost_decode(T &&...t) {
+    return basic_decode<boost_data>(std::forward<T>(t)...);
   }
 
-  template<typename T>
-  inline boost_data boost_decode(const T &begin, T end) {
-    return basic_decode<boost_data>(begin, end);
+  template<typename ...T>
+  inline boost_data boost_decode_all(T &&...t) {
+    return basic_decode_all<boost_data>(std::forward<T>(t)...);
   }
 
-  inline boost_data boost_decode(const string_view &s) {
-    return basic_decode<boost_data>(s.begin(), s.end());
+  template<typename ...T>
+  inline boost_data_view boost_decode_view(T &&...t) {
+    return basic_decode<boost_data_view>(std::forward<T>(t)...);
   }
 
-  inline boost_data boost_decode(std::istream &s, eof_behavior e = check_eof) {
-    return basic_decode<boost_data>(s, e);
-  }
-
-  template<typename T>
-  inline boost_data_view boost_decode_view(T &begin, T end) {
-    return basic_decode<boost_data_view>(begin, end);
-  }
-
-  template<typename T>
-  inline boost_data_view boost_decode_view(const T &begin, T end) {
-    return basic_decode<boost_data_view>(begin, end);
-  }
-
-  inline boost_data_view boost_decode_view(const string_view &s) {
-    return basic_decode<boost_data_view>(s.begin(), s.end());
+  template<typename ...T>
+  inline boost_data_view boost_decode_view_all(T &&...t) {
+    return basic_decode_all<boost_data_view>(std::forward<T>(t)...);
   }
 #endif
 

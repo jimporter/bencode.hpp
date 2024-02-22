@@ -54,29 +54,49 @@ However, you can [customize this](#bringing-your-own-variant) if you like.
 
 ### Decoding
 
-Decoding bencoded data is simple. Just call `decode`, which will return a `data`
-object that you can operate on:
+Decoding bencoded data is simple. Just call `decode_all`, which will return a
+`data` object that you can operate on:
 
 ```c++
-auto data = bencode::decode("i42e");
+auto data = bencode::decode_all("i42e");
 auto value = std::get<bencode::integer>(data);
 ```
 
 `decode` also has an overload that takes an iterator pair:
 
 ```c++
-auto data = bencode::decode(foo.begin(), foo.end());
+auto data = bencode::decode_all(foo.begin(), foo.end());
 ```
 
-Finally, you can pass an `std::istream` directly to `decode`. By default, this
-overload will set the eof bit on the stream if it reaches the end. However, you
-can override this behavior. This is useful if, for instance, you're reading
-multiple bencoded messages from a pipe:
+Finally, you can pass an `std::istream` directly to `decode_all`. By default,
+this overload will set the eof bit on the stream if it reaches the end. However,
+you can override this behavior:
 
 ```c++
 // Defaults to bencode::check_eof.
-auto data = bencode::decode(stream, bencode::no_check_eof);
+auto data = bencode::decode_all(stream, bencode::no_check_eof);
 ```
+
+This option is useful if, for instance, you're reading multiple bencoded
+messages from a pipe, which brings us to...
+
+#### Decoding successive objects
+
+One convenient feature of bencoded data is that it's possible to concatenate
+successive objects in the same string or stream, and readers can always tell
+where one ends and the next begins. While `decode_all` will consume all the
+input (or throw an exception if there's any extraneous data), `decode` will let
+you parse just the next bencoded object, leaving any extra data for the next
+call:
+
+```c++
+std::stringstream input("i42e3:foo");
+auto data1 = bencode::decode(input); // contains 42
+auto data2 = bencode::decode(input); // contains "foo"
+```
+
+When calling `decode` with an iterator pair, it will update the value of the
+"begin" iterator in-place to point to where the parsing left off.
 
 #### Views
 

@@ -18,17 +18,17 @@ suite<
 
   subsuite<>(_, "operator []", [](auto &_) {
     _.test("get (lvalue)", []() {
-      auto value = bencode::basic_decode<DataType>(nested_data);
+      auto value = bencode::basic_decode_all<DataType>(nested_data);
       expect(get<long long>(value["three"][0]["bar"]), equal_to(0));
     });
 
     _.test("get (rvalue)", []() {
-      auto value = bencode::basic_decode<DataType>(nested_data);
+      auto value = bencode::basic_decode_all<DataType>(nested_data);
       expect(get<long long>(std::move(value)["three"][0]["bar"]), equal_to(0));
     });
 
     _.test("set", []() {
-      auto value = bencode::basic_decode<DataType>("de");
+      auto value = bencode::basic_decode_all<DataType>("de");
       value["foo"] = 1;
       value["bar"] = "two";
       expect(bencode::encode(value),
@@ -38,25 +38,25 @@ suite<
 
   subsuite<>(_, "at", [](auto &_) {
     _.test("get (lvalue)", []() {
-      auto value = bencode::basic_decode<DataType>(nested_data);
+      auto value = bencode::basic_decode_all<DataType>(nested_data);
       expect(get<long long>(value.at("three").at(0).at("bar")),
              equal_to(0));
     });
 
     _.test("get (rvalue)", []() {
-      auto value = bencode::basic_decode<DataType>(nested_data);
+      auto value = bencode::basic_decode_all<DataType>(nested_data);
       expect(get<long long>(std::move(value).at("three").at(0).at("bar")),
              equal_to(0));
     });
 
     _.test("get (const lvalue)", []() {
-      const auto value = bencode::basic_decode<DataType>(nested_data);
+      const auto value = bencode::basic_decode_all<DataType>(nested_data);
       expect(get<long long>(value.at("three").at(0).at("bar")),
              equal_to(0));
     });
 
     _.test("get (const rvalue)", []() {
-      const auto value = bencode::basic_decode<DataType>(nested_data);
+      const auto value = bencode::basic_decode_all<DataType>(nested_data);
       expect(get<long long>(std::move(value).at("three").at(0).at("bar")),
              equal_to(0));
     });
