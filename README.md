@@ -62,7 +62,7 @@ auto data = bencode::decode_all("i42e");
 auto value = std::get<bencode::integer>(data);
 ```
 
-`decode` also has an overload that takes an iterator pair:
+`decode_all` also has an overload that takes an iterator pair:
 
 ```c++
 auto data = bencode::decode_all(foo.begin(), foo.end());
@@ -104,7 +104,7 @@ If the buffer holding the bencoded data is stable (i.e. won't change or be
 destroyed until you're done working with the parsed representation), you can
 decode the data as a *view* on the buffer to save memory. This results in all
 parsed strings being nothing more than pointers pointing to slices of your
-buffer. Simply append `_view` to the functions/types to take advantage of this:
+buffer. Simply add `_view` to the functions/types to take advantage of this:
 
 ```c++
 std::string buf = "3:foo";
