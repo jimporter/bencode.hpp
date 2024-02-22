@@ -324,9 +324,6 @@ namespace bencode {
     std::exception_ptr nested_;
   };
 
-  template<typename Data, typename Iter>
-  Data basic_decode(Iter &begin, Iter end);
-
   namespace detail {
 
     template<typename Integer>
