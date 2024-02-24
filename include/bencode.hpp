@@ -593,29 +593,29 @@ namespace bencode {
   }
 
   template<typename Data, typename Iter>
-  inline Data basic_decode(Iter &begin, Iter end) {
-    return detail::do_decode<data>(begin, end, false);
-  }
-
-  template<typename Data>
-  inline Data basic_decode(std::istream &s, eof_behavior e = check_eof) {
-    return detail::do_decode<Data>(s, e, false);
-  }
-
-  template<typename Data, typename Iter>
-  inline Data basic_decode_all(const Iter &begin, Iter end) {
+  inline Data basic_decode(const Iter &begin, Iter end) {
     Iter b(begin);
     return detail::do_decode<Data>(b, end, true);
   }
 
   template<typename Data>
-  inline Data basic_decode_all(const string_view &s) {
-    return basic_decode_all<Data>(s.begin(), s.end());
+  inline Data basic_decode(const string_view &s) {
+    return basic_decode<Data>(s.begin(), s.end());
   }
 
   template<typename Data>
-  inline Data basic_decode_all(std::istream &s, eof_behavior e = check_eof) {
+  inline Data basic_decode(std::istream &s, eof_behavior e = check_eof) {
     return detail::do_decode<Data>(s, e, true);
+  }
+
+  template<typename Data, typename Iter>
+  inline Data basic_decode_some(Iter &begin, Iter end) {
+    return detail::do_decode<data>(begin, end, false);
+  }
+
+  template<typename Data>
+  inline Data basic_decode_some(std::istream &s, eof_behavior e = check_eof) {
+    return detail::do_decode<Data>(s, e, false);
   }
 
   template<typename ...T>
@@ -624,8 +624,8 @@ namespace bencode {
   }
 
   template<typename ...T>
-  inline data decode_all(T &&...t) {
-    return basic_decode_all<data>(std::forward<T>(t)...);
+  inline data decode_some(T &&...t) {
+    return basic_decode_some<data>(std::forward<T>(t)...);
   }
 
   template<typename ...T>
@@ -634,8 +634,8 @@ namespace bencode {
   }
 
   template<typename ...T>
-  inline data_view decode_view_all(T &&...t) {
-    return basic_decode_all<data_view>(std::forward<T>(t)...);
+  inline data_view decode_view_some(T &&...t) {
+    return basic_decode_some<data_view>(std::forward<T>(t)...);
   }
 
 #ifdef BENCODE_HAS_BOOST
@@ -645,8 +645,8 @@ namespace bencode {
   }
 
   template<typename ...T>
-  inline boost_data boost_decode_all(T &&...t) {
-    return basic_decode_all<boost_data>(std::forward<T>(t)...);
+  inline boost_data boost_decode_some(T &&...t) {
+    return basic_decode_some<boost_data>(std::forward<T>(t)...);
   }
 
   template<typename ...T>
@@ -655,8 +655,8 @@ namespace bencode {
   }
 
   template<typename ...T>
-  inline boost_data_view boost_decode_view_all(T &&...t) {
-    return basic_decode_all<boost_data_view>(std::forward<T>(t)...);
+  inline boost_data_view boost_decode_view_some(T &&...t) {
+    return basic_decode_some<boost_data_view>(std::forward<T>(t)...);
   }
 #endif
 

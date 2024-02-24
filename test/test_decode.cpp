@@ -60,26 +60,26 @@ suite<> test_decode("test decoder", [](auto &_) {
 
       _.test("integer", []() {
         Fixture pos("i42e");
-        auto pos_value = bencode::basic_decode_all<DataType>(pos);
+        auto pos_value = bencode::basic_decode<DataType>(pos);
         expect(pos, at_eof());
         expect(get<typename DataType::integer>(pos_value), equal_to(42));
 
         Fixture neg("i-42e");
-        auto neg_value = bencode::basic_decode_all<DataType>(neg);
+        auto neg_value = bencode::basic_decode<DataType>(neg);
         expect(neg, at_eof());
         expect(get<typename DataType::integer>(neg_value), equal_to(-42));
       });
 
       _.test("string", []() {
         Fixture data("4:spam");
-        auto value = bencode::basic_decode_all<DataType>(data);
+        auto value = bencode::basic_decode<DataType>(data);
         expect(data, at_eof());
         expect(get<typename DataType::string>(value), equal_to("spam"));
       });
 
       _.test("list", []() {
         Fixture data("li42ee");
-        auto value = bencode::basic_decode_all<DataType>(data);
+        auto value = bencode::basic_decode<DataType>(data);
         auto list = get<typename DataType::list>(value);
         expect(data, at_eof());
         expect(get<typename DataType::integer>(list[0]), equal_to(42));
@@ -87,7 +87,7 @@ suite<> test_decode("test decoder", [](auto &_) {
 
       _.test("dict", []() {
         Fixture data("d4:spami42ee");
-        auto value = bencode::basic_decode_all<DataType>(data);
+        auto value = bencode::basic_decode<DataType>(data);
         auto dict = get<typename DataType::dict>(value);
         expect(data, at_eof());
         expect(get<typename DataType::integer>(dict["spam"]), equal_to(42));
@@ -100,7 +100,7 @@ suite<> test_decode("test decoder", [](auto &_) {
           "3:two" "l" "i3e" "3:foo" "i4e" "e"
         "e");
 
-        auto value = bencode::basic_decode_all<DataType>(data);
+        auto value = bencode::basic_decode<DataType>(data);
         expect(data, at_eof());
         auto dict = get<typename DataType::dict>(value);
         expect(get<typename DataType::integer>(dict["one"]), equal_to(1));
@@ -123,21 +123,21 @@ suite<> test_decode("test decoder", [](auto &_) {
       std::string data("i42e4:goat");
       auto begin = data.begin(), end = data.end();
 
-      auto first = bencode::decode(begin, end);
+      auto first = bencode::decode_some(begin, end);
       expect(std::get<bencode::integer>(first), equal_to(42));
 
-      auto second = bencode::decode(begin, end);
+      auto second = bencode::decode_some(begin, end);
       expect(std::get<bencode::string>(second), equal_to("goat"));
     });
 
     _.test("from stream", []() {
       std::stringstream data("i42e4:goat");
 
-      auto first = bencode::decode(data);
+      auto first = bencode::decode_some(data);
       expect(std::get<bencode::integer>(first), equal_to(42));
       expect(data, is_not(at_eof()));
 
-      auto second = bencode::decode(data);
+      auto second = bencode::decode_some(data);
       expect(std::get<bencode::string>(second), equal_to("goat"));
       expect(data, at_eof());
     });
@@ -152,11 +152,11 @@ suite<> test_decode("test decoder", [](auto &_) {
 
     _.test("integer", []() {
       std::string pos("i42e");
-      auto pos_value = bencode::basic_decode_all<DataType>(pos);
+      auto pos_value = bencode::basic_decode<DataType>(pos);
       expect(get<typename DataType::integer>(pos_value), equal_to(42));
 
       std::string neg("i-42e");
-      auto neg_value = bencode::basic_decode_all<DataType>(neg);
+      auto neg_value = bencode::basic_decode<DataType>(neg);
       expect(get<typename DataType::integer>(neg_value), equal_to(-42));
     });
 
@@ -167,7 +167,7 @@ suite<> test_decode("test decoder", [](auto &_) {
         less_equal(data.data() + data.size())
       );
 
-      auto value = bencode::basic_decode_all<DataType>(data);
+      auto value = bencode::basic_decode<DataType>(data);
       auto str = get<typename DataType::string>(value);
       expect(&*str.begin(), in_range);
       expect(&*str.end(), in_range);
@@ -176,7 +176,7 @@ suite<> test_decode("test decoder", [](auto &_) {
 
     _.test("list", []() {
       std::string data("li42ee");
-      auto value = bencode::basic_decode_all<DataType>(data);
+      auto value = bencode::basic_decode<DataType>(data);
       auto list = get<typename DataType::list>(value);
       expect(get<typename DataType::integer>(list[0]), equal_to(42));
     });
@@ -188,7 +188,7 @@ suite<> test_decode("test decoder", [](auto &_) {
         less_equal(data.data() + data.size())
       );
 
-      auto value = bencode::basic_decode_all<DataType>(data);
+      auto value = bencode::basic_decode<DataType>(data);
       auto dict = get<typename DataType::dict>(value);
       auto str = dict.find("spam")->first;
       expect(&*str.begin(), in_range);
@@ -205,7 +205,7 @@ suite<> test_decode("test decoder", [](auto &_) {
         "3:two" "l" "i3e" "3:foo" "i4e" "e"
       "e");
 
-      auto value = bencode::basic_decode_all<DataType>(data);
+      auto value = bencode::basic_decode<DataType>(data);
       auto dict = get<typename DataType::dict>(value);
       expect(get<typename DataType::integer>(dict["one"]), equal_to(1));
 
@@ -228,56 +228,56 @@ suite<> test_decode("test decoder", [](auto &_) {
     >;
 
     _.test("max value", []() {
-      auto value = bencode::decode_all("i9223372036854775807e");
+      auto value = bencode::decode("i9223372036854775807e");
       expect(std::get<bencode::integer>(value),
              equal_to(9223372036854775807LL));
     });
 
     _.test("overflow", []() {
-      expect([]() { bencode::decode_all("i9223372036854775808e"); },
+      expect([]() { bencode::decode("i9223372036854775808e"); },
              decode_error<std::overflow_error>("integer overflow", 20));
-      expect([]() { bencode::decode_all("i9323372036854775807e"); },
+      expect([]() { bencode::decode("i9323372036854775807e"); },
              decode_error<std::overflow_error>("integer overflow", 20));
-      expect([]() { bencode::decode_all("i92233720368547758070e"); },
+      expect([]() { bencode::decode("i92233720368547758070e"); },
              decode_error<std::overflow_error>("integer overflow", 20));
     });
 
     _.test("min value", []() {
-      auto value = bencode::decode_all("i-9223372036854775808e");
+      auto value = bencode::decode("i-9223372036854775808e");
       expect(std::get<bencode::integer>(value),
              equal_to(-9223372036854775807LL - 1));
     });
 
     _.test("underflow", []() {
-      expect([]() { bencode::decode_all("i-9223372036854775809e"); },
+      expect([]() { bencode::decode("i-9223372036854775809e"); },
              decode_error<std::underflow_error>("integer underflow", 21));
-      expect([]() { bencode::decode_all("i-9323372036854775808e"); },
+      expect([]() { bencode::decode("i-9323372036854775808e"); },
              decode_error<std::underflow_error>("integer underflow", 21));
-      expect([]() { bencode::decode_all("i-92233720368547758080e"); },
+      expect([]() { bencode::decode("i-92233720368547758080e"); },
              decode_error<std::underflow_error>("integer underflow", 21));
     });
 
     _.test("max value (unsigned)", []() {
-      auto value = bencode::basic_decode_all<udata>("i18446744073709551615e");
+      auto value = bencode::basic_decode<udata>("i18446744073709551615e");
       expect(std::get<udata::integer>(value),
              equal_to(18446744073709551615ULL));
     });
 
     _.test("overflow (unsigned)", []() {
       expect([]() {
-        bencode::basic_decode_all<udata>("i18446744073709551616e");
+        bencode::basic_decode<udata>("i18446744073709551616e");
       }, decode_error<std::overflow_error>("integer overflow", 21));
       expect([]() {
-        bencode::basic_decode_all<udata>("i19446744073709551615e");
+        bencode::basic_decode<udata>("i19446744073709551615e");
       }, decode_error<std::overflow_error>("integer overflow", 21));
       expect([]() {
-        bencode::basic_decode_all<udata>("i184467440737095516150e");
+        bencode::basic_decode<udata>("i184467440737095516150e");
       }, decode_error<std::overflow_error>("integer overflow", 21));
     });
 
     _.test("negative value (unsigned)", []() {
       expect(
-        []() { bencode::basic_decode_all<udata>("i-42e"); },
+        []() { bencode::basic_decode<udata>("i-42e"); },
         decode_error<std::underflow_error>("expected unsigned integer", 1)
       );
     });
@@ -285,7 +285,7 @@ suite<> test_decode("test decoder", [](auto &_) {
 
   subsuite<>(_, "error handling", [](auto &_) {
     _.test("unexpected type token", []() {
-      expect([]() { bencode::decode_all("x"); },
+      expect([]() { bencode::decode("x"); },
              decode_error<bencode::syntax_error>("unexpected type token", 0));
     });
 
@@ -296,40 +296,40 @@ suite<> test_decode("test decoder", [](auto &_) {
         );
       };
 
-      expect([]() { bencode::decode_all(""); }, eos(0));
-      expect([]() { bencode::decode_all("i123"); }, eos(4));
-      expect([]() { bencode::decode_all("3"); }, eos(1));
-      expect([]() { bencode::decode_all("3:as"); }, eos(4));
-      expect([]() { bencode::decode_all("l"); }, eos(1));
-      expect([]() { bencode::decode_all("li1e"); }, eos(4));
-      expect([]() { bencode::decode_all("d"); }, eos(1));
-      expect([]() { bencode::decode_all("d1:a"); }, eos(4));
-      expect([]() { bencode::decode_all("d1:ai1e"); }, eos(7));
+      expect([]() { bencode::decode(""); }, eos(0));
+      expect([]() { bencode::decode("i123"); }, eos(4));
+      expect([]() { bencode::decode("3"); }, eos(1));
+      expect([]() { bencode::decode("3:as"); }, eos(4));
+      expect([]() { bencode::decode("l"); }, eos(1));
+      expect([]() { bencode::decode("li1e"); }, eos(4));
+      expect([]() { bencode::decode("d"); }, eos(1));
+      expect([]() { bencode::decode("d1:a"); }, eos(4));
+      expect([]() { bencode::decode("d1:ai1e"); }, eos(7));
     });
 
     _.test("extraneous character", []() {
-      expect([]() { bencode::decode_all("i123ei"); },
+      expect([]() { bencode::decode("i123ei"); },
              decode_error<bencode::syntax_error>("extraneous character", 5));
     });
 
     _.test("expected 'e' token", []() {
-      expect([]() { bencode::decode_all("i123i"); },
+      expect([]() { bencode::decode("i123i"); },
              decode_error<bencode::syntax_error>("expected 'e' token", 4));
     });
 
     _.test("unexpected 'e' token", []() {
-      expect([]() { bencode::decode_all("e"); },
+      expect([]() { bencode::decode("e"); },
              decode_error<bencode::syntax_error>("unexpected 'e' token", 0));
     });
 
     _.test("expected ':' token", []() {
-      expect([]() { bencode::decode_all("1abc"); },
+      expect([]() { bencode::decode("1abc"); },
              decode_error<bencode::syntax_error>("expected ':' token", 1));
     });
 
     _.test("expected string start token", []() {
       expect(
-        []() { bencode::decode_all("di123ee"); },
+        []() { bencode::decode("di123ee"); },
         decode_error<bencode::syntax_error>(
           "expected string start token for dict key", 1
         )
@@ -338,7 +338,7 @@ suite<> test_decode("test decoder", [](auto &_) {
 
     _.test("duplicated key", []() {
       expect(
-        []() { bencode::decode_all("d3:fooi1e3:fooi1ee"); },
+        []() { bencode::decode("d3:fooi1e3:fooi1ee"); },
         decode_error<bencode::syntax_error>("duplicated key in dict: foo", 17)
       );
     });

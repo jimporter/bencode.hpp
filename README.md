@@ -54,27 +54,27 @@ However, you can [customize this](#bringing-your-own-variant) if you like.
 
 ### Decoding
 
-Decoding bencoded data is simple. Just call `decode_all`, which will return a
-`data` object that you can operate on:
+Decoding bencoded data is simple. Just call `decode`, which will return a `data`
+object that you can operate on:
 
 ```c++
-auto data = bencode::decode_all("i42e");
+bencode::data data = bencode::decode("i42e");
 auto value = std::get<bencode::integer>(data);
 ```
 
-`decode_all` also has an overload that takes an iterator pair:
+`decode` also has an overload that takes an iterator pair:
 
 ```c++
-auto data = bencode::decode_all(foo.begin(), foo.end());
+auto data = bencode::decode(foo.begin(), foo.end());
 ```
 
-Finally, you can pass an `std::istream` directly to `decode_all`. By default,
-this overload will set the eof bit on the stream if it reaches the end. However,
-you can override this behavior:
+Finally, you can pass an `std::istream` directly to `decode`. By default, this
+overload will set the eof bit on the stream if it reaches the end. However, you
+can override this behavior:
 
 ```c++
 // Defaults to bencode::check_eof.
-auto data = bencode::decode_all(stream, bencode::no_check_eof);
+auto data = bencode::decode(stream, bencode::no_check_eof);
 ```
 
 This option is useful if, for instance, you're reading multiple bencoded
@@ -84,19 +84,19 @@ messages from a pipe, which brings us to...
 
 One convenient feature of bencoded data is that it's possible to concatenate
 successive objects in the same string or stream, and readers can always tell
-where one ends and the next begins. While `decode_all` will consume all the
-input (or throw an exception if there's any extraneous data), `decode` will let
+where one ends and the next begins. While `decode` will consume all the input
+(or throw an exception if there's any extraneous data), `decode_some` will let
 you parse just the next bencoded object, leaving any extra data for the next
 call:
 
 ```c++
 std::stringstream input("i42e3:foo");
-auto data1 = bencode::decode(input); // contains 42
-auto data2 = bencode::decode(input); // contains "foo"
+auto data1 = bencode::decode_some(input); // contains 42
+auto data2 = bencode::decode_some(input); // contains "foo"
 ```
 
-When calling `decode` with an iterator pair, it will update the value of the
-"begin" iterator in-place to point to where the parsing left off.
+When calling `decode_some` with an iterator pair, it will update the value of
+the "begin" iterator in-place to point to where the parsing left off.
 
 #### Views
 
@@ -108,7 +108,7 @@ buffer. Simply add `_view` to the functions/types to take advantage of this:
 
 ```c++
 std::string buf = "3:foo";
-auto data = bencode::decode_view_all(buf);
+bencode::data_view data = bencode::decode_view(buf); // or `decode_view_some`
 auto value = std::get<bencode::string_view>(data);
 ```
 
@@ -121,7 +121,7 @@ caused the error, via either `nested_ptr()` or `rethrow_nested()`:
 
 ```c++
   try {
-    auto data = bencode::decode_all(input);
+    auto data = bencode::decode(input);
   } catch(const bencode::decode_error &e) {
     // Throw the underlying exception. Maybe catch it and do something with it.
     e.rethrow_nested();
@@ -135,7 +135,7 @@ simple cases, you can just use `std::get` to retrieve the value out of the
 variant:
 
 ```c++
-auto data = bencode::decode_all("i42e");
+auto data = bencode::decode("i42e");
 auto value = std::get<bencode::integer>(data);
 ```
 
@@ -144,7 +144,7 @@ requested element from a `list` value (if you pass an integer) or `dict` value
 (if you pass a string):
 
 ```c++
-auto data = bencode::decode_all("d3:fooi42ee");
+auto data = bencode::decode("d3:fooi42ee");
 auto elem = data["foo"];
 auto value = std::get<bencode::integer>(elem);
 ```
@@ -205,8 +205,8 @@ These functions work the same as the regular bencode.hpp versions, but are
 prefixed with `boost_`:
 
 ```c++
-bencode::boost_data d = bencode::boost_decode_all(msg);
-bencode::boost_data_view dv = bencode::boost_decode_view_all(msg);
+bencode::boost_data d = bencode::boost_decode(msg);
+bencode::boost_data_view dv = bencode::boost_decode_view(msg);
 // ...
 ```
 
@@ -223,7 +223,7 @@ using cool_data = bencode::basic_data<
   cool_variant, long long, std::string, std::vector, bencode::map_proxy
 >;
 
-auto result = bencode::basic_decode_all<cool_data>(message);
+auto result = bencode::basic_decode<cool_data>(message);
 ```
 
 Note that when using a different variant type, you'll likely want to create a
