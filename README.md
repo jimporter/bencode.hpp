@@ -54,18 +54,20 @@ However, you can [customize this](#bringing-your-own-variant) if you like.
 
 ### Decoding
 
-Decoding bencoded data is simple. Just call `decode`, which will return a `data`
-object that you can operate on:
+Decoding bencoded data is simple. Just call `decode` with a string or some other
+container holding character data. This will return a `data` object that you can
+operate on:
 
 ```c++
 bencode::data data = bencode::decode("i42e");
 auto value = std::get<bencode::integer>(data);
 ```
 
-`decode` also has an overload that takes an iterator pair:
+`decode` also has overloads that takes an iterator pair or a pointer and length:
 
 ```c++
-auto data = bencode::decode(foo.begin(), foo.end());
+auto data1 = bencode::decode(foo.begin(), foo.end());
+auto data2 = bencode::decode(c_str, std::strlen(c_str));
 ```
 
 Finally, you can pass an `std::istream` directly to `decode`. By default, this
@@ -96,7 +98,9 @@ auto data2 = bencode::decode_some(input); // contains "foo"
 ```
 
 When calling `decode_some` with an iterator pair, it will update the value of
-the "begin" iterator in-place to point to where the parsing left off.
+the "begin" iterator in-place to point to where the parsing left off. Similary,
+calling `decode_some` with a pointer or pointer/length, it will update the
+pointer's value in-place.
 
 #### Views
 

@@ -335,6 +335,17 @@ namespace bencode {
     template<typename T>
     inline constexpr bool is_view_v = is_view<T>::value;
 
+    template<typename, typename = std::void_t<>>
+    struct is_iterable : std::false_type {};
+
+    template<typename T>
+    struct is_iterable<T, std::void_t<
+      decltype(std::begin(std::declval<T&>()), std::end(std::declval<T&>()))
+    >> : std::true_type {};
+
+    template<typename T>
+    inline constexpr bool is_iterable_v = is_iterable<T>::value;
+
     template<typename Integer>
     inline void check_overflow(Integer value, Integer digit) {
       using limits = std::numeric_limits<Integer>;
@@ -607,9 +618,21 @@ namespace bencode {
     return detail::do_decode<Data>(b, end, true);
   }
 
+  template<typename Data, typename String,
+           std::enable_if_t<detail::is_iterable_v<String> &&
+                            !std::is_array_v<String>, bool> = true>
+  inline Data basic_decode(const String &s) {
+    return basic_decode<Data>(std::begin(s), std::end(s));
+  }
+
   template<typename Data>
-  inline Data basic_decode(const string_view &s) {
-    return basic_decode<Data>(s.begin(), s.end());
+  inline Data basic_decode(const char *s) {
+    return basic_decode<Data>(s, s + std::strlen(s));
+  }
+
+  template<typename Data>
+  inline Data basic_decode(const char *s, std::size_t length) {
+    return basic_decode<Data>(s, s + length);
   }
 
   template<typename Data>
@@ -620,6 +643,16 @@ namespace bencode {
   template<typename Data, typename Iter>
   inline Data basic_decode_some(Iter &begin, Iter end) {
     return detail::do_decode<Data>(begin, end, false);
+  }
+
+  template<typename Data>
+  inline Data basic_decode_some(const char *&s) {
+    return basic_decode_some<Data>(s, s + std::strlen(s));
+  }
+
+  template<typename Data>
+  inline Data basic_decode_some(const char *&s, std::size_t length) {
+    return basic_decode_some<Data>(s, s + length);
   }
 
   template<typename Data>

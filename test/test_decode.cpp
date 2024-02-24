@@ -3,9 +3,21 @@ using namespace mettle;
 
 #include "bencode.hpp"
 
+template<typename T>
+auto make_data(const char *data) ->
+std::enable_if_t<std::is_constructible_v<T, const char *>, T> {
+  return T((char*)(data));
+}
+
+template<typename T>
+auto make_data(const char *data) ->
+std::enable_if_t<!std::is_constructible_v<T, const char *>, T> {
+  return T(data, data + std::strlen(data));
+}
+
 struct at_eof : matcher_tag {
-  bool operator ()(const std::string &) const {
-    return true;
+  bool operator ()(const char *s) const {
+    return *s == '\0';
   }
 
   template<typename Char, typename Traits>
@@ -17,6 +29,29 @@ struct at_eof : matcher_tag {
     return "at eof";
   }
 };
+
+template<typename T,
+         typename std::enable_if_t<bencode::detail::is_iterable_v<T>, int> = 0>
+auto in_range(const T &t) {
+  return all(
+    greater_equal(&*std::begin(t)),
+    less_equal(&*std::end(t))
+  );
+}
+
+template<typename T,
+         typename std::enable_if_t<!bencode::detail::is_iterable_v<T>, int> = 0>
+auto in_range(const T &) {
+  return is_not(anything());
+}
+
+template<typename T>
+auto in_range(const T *t) {
+  return all(
+    greater_equal(t),
+    less_equal(t + std::strlen(t))
+  );
+}
 
 template<typename Nested, typename Matcher>
 auto thrown_nested(Matcher &&matcher) {
@@ -44,180 +79,229 @@ auto decode_error(const std::string &what, std::size_t offset) {
   );
 }
 
-suite<> test_decode("test decoder", [](auto &_) {
+template<typename InType, typename Builder, typename Callable>
+auto decode_tests(Builder &_, Callable &&do_decode) {
+  using OutType = fixture_type_t<decltype(_)>;
+  using boost::get;
+  using std::get;
 
+  _.test("integer", [do_decode]() {
+    auto pos = make_data<InType>("i42e");
+    auto pos_value = do_decode(pos);
+    expect(get<typename OutType::integer>(pos_value), equal_to(42));
+
+    auto neg = make_data<InType>("i-42e");
+    auto neg_value = do_decode(neg);
+    expect(get<typename OutType::integer>(neg_value), equal_to(-42));
+  });
+
+  _.test("string", [do_decode]() {
+    auto data = make_data<InType>("4:spam");
+    auto in_data_range = in_range(data);
+
+    auto value = do_decode(data);
+    auto str = get<typename OutType::string>(value);
+    expect(str, equal_to("spam"));
+    if constexpr(bencode::detail::is_view_v<typename OutType::string>) {
+      expect(&*str.begin(), in_data_range);
+      expect(&*str.end(), in_data_range);
+    }
+  });
+
+  _.test("list", [do_decode]() {
+    auto data = make_data<InType>("li42ee");
+    auto value = do_decode(data);
+    auto list = get<typename OutType::list>(value);
+    expect(get<typename OutType::integer>(list[0]), equal_to(42));
+  });
+
+  _.test("dict", [do_decode]() {
+    auto data = make_data<InType>("d4:spami42ee");
+    auto in_data_range = in_range(data);
+
+    auto value = do_decode(data);
+    auto dict = get<typename OutType::dict>(value);
+    expect(get<typename OutType::integer>(dict["spam"]), equal_to(42));
+
+    auto str = dict.find("spam")->first;
+    expect(str, equal_to("spam"));
+    if constexpr (bencode::detail::is_view_v<typename OutType::string>) {
+      expect(&*str.begin(), in_data_range);
+      expect(&*str.end(), in_data_range);
+    }
+  });
+
+  _.test("nested", [do_decode]() {
+    auto data = make_data<InType>(
+      "d"
+      "3:one" "i1e"
+      "5:three" "l" "d" "3:bar" "i0e" "3:foo" "i0e" "e" "e"
+      "3:two" "l" "i3e" "3:foo" "i4e" "e"
+      "e"
+    );
+    auto value = do_decode(data);
+
+    auto dict = get<typename OutType::dict>(value);
+    expect(get<typename OutType::integer>(dict["one"]), equal_to(1));
+
+    expect(get<typename OutType::string>(
+             get<typename OutType::list>(dict["two"])[1]
+           ), equal_to("foo"));
+
+    expect(get<typename OutType::integer>(
+             get<typename OutType::dict>(
+               get<typename OutType::list>(dict["three"])[0]
+             )["foo"]
+           ), equal_to(0));
+  });
+}
+
+suite<> test_decode("test decoder", [](auto &_) {
   subsuite<
-    bencode::data, bencode::boost_data
-  >(_, "decoding", type_only, [](auto &_) {
-    using DataType = fixture_type_t<decltype(_)>;
-    using boost::get;
-    using std::get;
+    const char *, std::string, std::vector<char>, std::istringstream
+  >(_, "decode", type_only, [](auto &_) {
+    using InType = fixture_type_t<decltype(_)>;
 
     subsuite<
-      const char *, std::string, std::istringstream
-    >(_, "decoding from", type_only, [](auto &_) {
-      using Fixture = fixture_type_t<decltype(_)>;
-
-      _.test("integer", []() {
-        Fixture pos("i42e");
-        auto pos_value = bencode::basic_decode<DataType>(pos);
-        expect(pos, at_eof());
-        expect(get<typename DataType::integer>(pos_value), equal_to(42));
-
-        Fixture neg("i-42e");
-        auto neg_value = bencode::basic_decode<DataType>(neg);
-        expect(neg, at_eof());
-        expect(get<typename DataType::integer>(neg_value), equal_to(-42));
+      bencode::data, bencode::boost_data
+    >(_, "decode to", type_only, [](auto &_) {
+      using OutType = fixture_type_t<decltype(_)>;
+      decode_tests<InType>(_, [](auto &&data) {
+        auto value = bencode::basic_decode<OutType>(data);
+        if constexpr(std::is_same_v<InType, std::istringstream>) {
+          expect(data, at_eof());
+        }
+        return value;
       });
+    });
 
-      _.test("string", []() {
-        Fixture data("4:spam");
-        auto value = bencode::basic_decode<DataType>(data);
-        expect(data, at_eof());
-        expect(get<typename DataType::string>(value), equal_to("spam"));
+    if constexpr(!std::is_same_v<InType, std::istringstream>) {
+      subsuite<
+        bencode::data_view, bencode::boost_data_view
+      >(_, "decode to", type_only, [](auto &_) {
+        using OutType = fixture_type_t<decltype(_)>;
+        decode_tests<InType>(_, [](auto &&data) {
+          return bencode::basic_decode<OutType>(data);
+        });
       });
+    }
+  });
 
-      _.test("list", []() {
-        Fixture data("li42ee");
-        auto value = bencode::basic_decode<DataType>(data);
-        auto list = get<typename DataType::list>(value);
-        expect(data, at_eof());
-        expect(get<typename DataType::integer>(list[0]), equal_to(42));
-      });
+  subsuite<
+    std::string, std::vector<char>
+  >(_, "decode iterator pair", type_only, [](auto &_) {
+    using InType = fixture_type_t<decltype(_)>;
 
-      _.test("dict", []() {
-        Fixture data("d4:spami42ee");
-        auto value = bencode::basic_decode<DataType>(data);
-        auto dict = get<typename DataType::dict>(value);
-        expect(data, at_eof());
-        expect(get<typename DataType::integer>(dict["spam"]), equal_to(42));
-      });
-
-      _.test("nested", []() {
-        Fixture data("d"
-          "3:one" "i1e"
-          "5:three" "l" "d" "3:bar" "i0e" "3:foo" "i0e" "e" "e"
-          "3:two" "l" "i3e" "3:foo" "i4e" "e"
-        "e");
-
-        auto value = bencode::basic_decode<DataType>(data);
-        expect(data, at_eof());
-        auto dict = get<typename DataType::dict>(value);
-        expect(get<typename DataType::integer>(dict["one"]), equal_to(1));
-
-        expect(get<typename DataType::string>(
-          get<typename DataType::list>(dict["two"])[1]
-        ), equal_to("foo"));
-
-        expect(get<typename DataType::integer>(
-          get<typename DataType::dict>(
-            get<typename DataType::list>(dict["three"])[0]
-          )["foo"]
-        ), equal_to(0));
+    subsuite<
+      bencode::data, bencode::boost_data, bencode::data_view,
+      bencode::boost_data_view
+    >(_, "decode to", type_only, [](auto &_) {
+      using OutType = fixture_type_t<decltype(_)>;
+      decode_tests<InType>(_, [](auto &&data) {
+        return bencode::basic_decode<OutType>(data.begin(), data.end());
       });
     });
   });
 
-  subsuite<>(_, "decode successive objects", [](auto &_) {
-    _.test("from string", []() {
-      std::string data("i42e4:goat");
-      auto begin = data.begin(), end = data.end();
-
-      auto first = bencode::decode_some(begin, end);
-      expect(std::get<bencode::integer>(first), equal_to(42));
-
-      auto second = bencode::decode_some(begin, end);
-      expect(std::get<bencode::string>(second), equal_to("goat"));
-    });
-
-    _.test("from stream", []() {
-      std::stringstream data("i42e4:goat");
-
-      auto first = bencode::decode_some(data);
-      expect(std::get<bencode::integer>(first), equal_to(42));
-      expect(data, is_not(at_eof()));
-
-      auto second = bencode::decode_some(data);
-      expect(std::get<bencode::string>(second), equal_to("goat"));
-      expect(data, at_eof());
+  subsuite<>(_, "decode pointer/length", [](auto &_) {
+    subsuite<
+      bencode::data, bencode::boost_data, bencode::data_view,
+      bencode::boost_data_view
+    >(_, "decode to", type_only, [](auto &_) {
+      using OutType = fixture_type_t<decltype(_)>;
+      decode_tests<const char *>(_, [](const char *data) {
+        return bencode::basic_decode<OutType>(data, data + std::strlen(data));
+      });
     });
   });
 
   subsuite<
-    bencode::data_view, bencode::boost_data_view
-  >(_, "decoding (view)", type_only, [](auto &_) {
-    using DataType = fixture_type_t<decltype(_)>;
-    using boost::get;
-    using std::get;
+    const char *, std::istringstream
+  >(_, "decode_some", type_only, [](auto &_) {
+    using InType = fixture_type_t<decltype(_)>;
 
-    _.test("integer", []() {
-      std::string pos("i42e");
-      auto pos_value = bencode::basic_decode<DataType>(pos);
-      expect(get<typename DataType::integer>(pos_value), equal_to(42));
+    subsuite<
+      bencode::data, bencode::boost_data
+    >(_, "decode to", type_only, [](auto &_) {
+      using OutType = fixture_type_t<decltype(_)>;
+      decode_tests<InType>(_, [](auto &&data) {
+        auto value = bencode::basic_decode_some<OutType>(data);
+        expect(data, at_eof());
+        return value;
+      });
 
-      std::string neg("i-42e");
-      auto neg_value = bencode::basic_decode<DataType>(neg);
-      expect(get<typename DataType::integer>(neg_value), equal_to(-42));
+      _.test("successive objects", []() {
+        auto data = make_data<InType>("i42e4:goat");
+
+        auto first = bencode::decode_some(data);
+        expect(std::get<bencode::integer>(first), equal_to(42));
+        expect(data, is_not(at_eof()));
+
+        auto second = bencode::decode_some(data);
+        expect(std::get<bencode::string>(second), equal_to("goat"));
+        expect(data, at_eof());
+      });
     });
 
-    _.test("string", []() {
-      std::string data("4:spam");
-      auto in_range = all(
-        greater_equal(data.data()),
-        less_equal(data.data() + data.size())
-      );
+    if constexpr(!std::is_same_v<InType, std::istringstream>) {
+      subsuite<
+        bencode::data_view, bencode::boost_data_view
+      >(_, "decode to", type_only, [](auto &_) {
+        using OutType = fixture_type_t<decltype(_)>;
+        decode_tests<InType>(_, [](auto &&data) {
+          auto value = bencode::basic_decode_some<OutType>(data);
+          expect(data, at_eof());
+          return value;
+        });
+      });
+    }
+  });
 
-      auto value = bencode::basic_decode<DataType>(data);
-      auto str = get<typename DataType::string>(value);
-      expect(&*str.begin(), in_range);
-      expect(&*str.end(), in_range);
-      expect(str, equal_to("spam"));
+  subsuite<
+    std::string, std::vector<char>
+  >(_, "decode_some iterator pair", type_only, [](auto &_) {
+    using InType = fixture_type_t<decltype(_)>;
+
+    subsuite<
+      bencode::data, bencode::boost_data, bencode::data_view,
+      bencode::boost_data_view
+    >(_, "decode to", type_only, [](auto &_) {
+      using OutType = fixture_type_t<decltype(_)>;
+      decode_tests<InType>(_, [](auto &&data) {
+        auto begin = data.begin(), end = data.end();
+        auto value = bencode::basic_decode_some<OutType>(begin, end);
+        expect(begin, equal_to(end));
+        return value;
+      });
+
+      _.test("successive objects", []() {
+        auto data = make_data<InType>("i42e4:goat");
+        auto begin = data.begin(), end = data.end();
+
+        auto first = bencode::decode_some(begin, end);
+        expect(std::get<bencode::integer>(first), equal_to(42));
+        expect(begin, less(end));
+
+        auto second = bencode::decode_some(begin, end);
+        expect(std::get<bencode::string>(second), equal_to("goat"));
+        expect(begin, equal_to(end));
+      });
     });
+  });
 
-    _.test("list", []() {
-      std::string data("li42ee");
-      auto value = bencode::basic_decode<DataType>(data);
-      auto list = get<typename DataType::list>(value);
-      expect(get<typename DataType::integer>(list[0]), equal_to(42));
-    });
-
-    _.test("dict", []() {
-      std::string data("d4:spami42ee");
-      auto in_range = all(
-        greater_equal(data.data()),
-        less_equal(data.data() + data.size())
-      );
-
-      auto value = bencode::basic_decode<DataType>(data);
-      auto dict = get<typename DataType::dict>(value);
-      auto str = dict.find("spam")->first;
-      expect(&*str.begin(), in_range);
-      expect(&*str.end(), in_range);
-      expect(str, equal_to("spam"));
-
-      expect(get<typename DataType::integer>(dict["spam"]), equal_to(42));
-    });
-
-    _.test("nested", []() {
-      std::string data("d"
-        "3:one" "i1e"
-        "5:three" "l" "d" "3:bar" "i0e" "3:foo" "i0e" "e" "e"
-        "3:two" "l" "i3e" "3:foo" "i4e" "e"
-      "e");
-
-      auto value = bencode::basic_decode<DataType>(data);
-      auto dict = get<typename DataType::dict>(value);
-      expect(get<typename DataType::integer>(dict["one"]), equal_to(1));
-
-      expect(get<typename DataType::string>(
-        get<typename DataType::list>(dict["two"])[1]
-      ), equal_to("foo"));
-
-      expect(get<typename DataType::integer>(
-        get<typename DataType::dict>(
-          get<typename DataType::list>(dict["three"])[0]
-        )["foo"]
-      ), equal_to(0));
+  subsuite<>(_, "decode_some pointer/length", [](auto &_) {
+    subsuite<
+      bencode::data, bencode::boost_data, bencode::data_view,
+      bencode::boost_data_view
+    >(_, "decode to", type_only, [](auto &_) {
+      using OutType = fixture_type_t<decltype(_)>;
+      decode_tests<const char *>(_, [](const char *data) {
+        auto value = bencode::basic_decode_some<OutType>(
+          data, data + std::strlen(data)
+        );
+        expect(data, at_eof());
+        return value;
+      });
     });
   });
 

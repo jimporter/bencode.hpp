@@ -5,6 +5,7 @@
 ### New features
 - `bencode::data` (and `bencode::basic_data`, etc) now support `operator []` and
   `at` member functions to get list/dictionary elements
+- Decoding functions now accept a pointer plus length as input
 
 ### Breaking changes
 - To decode only the next bencode object in a string or stream, you must now
