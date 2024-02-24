@@ -619,7 +619,7 @@ namespace bencode {
 
   template<typename Data, typename Iter>
   inline Data basic_decode_some(Iter &begin, Iter end) {
-    return detail::do_decode<data>(begin, end, false);
+    return detail::do_decode<Data>(begin, end, false);
   }
 
   template<typename Data>
