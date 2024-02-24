@@ -326,6 +326,15 @@ namespace bencode {
 
   namespace detail {
 
+    template<typename>
+    struct is_view : std::false_type {};
+
+    template<typename T>
+    struct is_view<std::basic_string_view<T>> : std::true_type {};
+
+    template<typename T>
+    inline constexpr bool is_view_v = is_view<T>::value;
+
     template<typename Integer>
     inline void check_overflow(Integer value, Integer digit) {
       using limits = std::numeric_limits<Integer>;
@@ -579,7 +588,7 @@ namespace bencode {
 
     template<typename Data>
     Data do_decode(std::istream &s, eof_behavior e, bool all) {
-      static_assert(!std::is_same_v<typename Data::string, std::string_view>,
+      static_assert(!detail::is_view_v<typename Data::string>,
                     "reading from stream not supported for data views");
 
       std::istreambuf_iterator<char> begin(s), end;
