@@ -91,7 +91,8 @@ auto decode_tests(Builder &_, Callable &&do_decode) {
 
   _.test("string", [do_decode]() {
     auto data = make_data<InType>("4:spam");
-    auto within_data_memory = within_memory(data);
+    // Silence GCC < 10.
+    [[maybe_unused]] auto within_data_memory = within_memory(data);
 
     auto value = do_decode(data);
     auto str = get<typename OutType::string>(value);
@@ -111,7 +112,8 @@ auto decode_tests(Builder &_, Callable &&do_decode) {
 
   _.test("dict", [do_decode]() {
     auto data = make_data<InType>("d4:spami42ee");
-    auto within_data_memory = within_memory(data);
+    // Silence GCC < 10.
+    [[maybe_unused]] auto within_data_memory = within_memory(data);
 
     auto value = do_decode(data);
     auto dict = get<typename OutType::dict>(value);
