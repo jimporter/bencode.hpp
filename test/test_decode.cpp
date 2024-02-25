@@ -32,18 +32,18 @@ struct at_eof : matcher_tag {
 
 template<typename T,
          typename std::enable_if_t<bencode::detail::is_iterable_v<T>, int> = 0>
-auto reuses_memory(const T &t) {
+auto within_memory(const T &t) {
   return in_interval(&*std::begin(t), &*std::end(t), interval::closed);
 }
 
 template<typename T,
          typename std::enable_if_t<!bencode::detail::is_iterable_v<T>, int> = 0>
-auto reuses_memory(const T &) {
+auto within_memory(const T &) {
   return is_not(anything());
 }
 
 template<typename T>
-auto reuses_memory(const T *t) {
+auto within_memory(const T *t) {
   return in_interval(t, t + std::strlen(t), interval::closed);
 }
 
@@ -91,14 +91,14 @@ auto decode_tests(Builder &_, Callable &&do_decode) {
 
   _.test("string", [do_decode]() {
     auto data = make_data<InType>("4:spam");
-    auto reuses_data_memory = reuses_memory(data);
+    auto within_data_memory = within_memory(data);
 
     auto value = do_decode(data);
     auto str = get<typename OutType::string>(value);
     expect(str, equal_to("spam"));
     if constexpr(bencode::detail::is_view_v<typename OutType::string>) {
-      expect(&*str.begin(), reuses_data_memory);
-      expect(&*str.end(), reuses_data_memory);
+      expect(&*str.begin(), within_data_memory);
+      expect(&*str.end(), within_data_memory);
     }
   });
 
@@ -111,7 +111,7 @@ auto decode_tests(Builder &_, Callable &&do_decode) {
 
   _.test("dict", [do_decode]() {
     auto data = make_data<InType>("d4:spami42ee");
-    auto reuses_data_memory = reuses_memory(data);
+    auto within_data_memory = within_memory(data);
 
     auto value = do_decode(data);
     auto dict = get<typename OutType::dict>(value);
@@ -120,8 +120,8 @@ auto decode_tests(Builder &_, Callable &&do_decode) {
     auto str = dict.find("spam")->first;
     expect(str, equal_to("spam"));
     if constexpr (bencode::detail::is_view_v<typename OutType::string>) {
-      expect(&*str.begin(), reuses_data_memory);
-      expect(&*str.end(), reuses_data_memory);
+      expect(&*str.begin(), within_data_memory);
+      expect(&*str.end(), within_data_memory);
     }
   });
 
