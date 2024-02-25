@@ -32,25 +32,19 @@ struct at_eof : matcher_tag {
 
 template<typename T,
          typename std::enable_if_t<bencode::detail::is_iterable_v<T>, int> = 0>
-auto in_range(const T &t) {
-  return all(
-    greater_equal(&*std::begin(t)),
-    less_equal(&*std::end(t))
-  );
+auto reuses_memory(const T &t) {
+  return in_interval(&*std::begin(t), &*std::end(t), interval::closed);
 }
 
 template<typename T,
          typename std::enable_if_t<!bencode::detail::is_iterable_v<T>, int> = 0>
-auto in_range(const T &) {
+auto reuses_memory(const T &) {
   return is_not(anything());
 }
 
 template<typename T>
-auto in_range(const T *t) {
-  return all(
-    greater_equal(t),
-    less_equal(t + std::strlen(t))
-  );
+auto reuses_memory(const T *t) {
+  return in_interval(t, t + std::strlen(t), interval::closed);
 }
 
 template<typename Nested, typename Matcher>
@@ -97,14 +91,14 @@ auto decode_tests(Builder &_, Callable &&do_decode) {
 
   _.test("string", [do_decode]() {
     auto data = make_data<InType>("4:spam");
-    auto in_data_range = in_range(data);
+    auto reuses_data_memory = reuses_memory(data);
 
     auto value = do_decode(data);
     auto str = get<typename OutType::string>(value);
     expect(str, equal_to("spam"));
     if constexpr(bencode::detail::is_view_v<typename OutType::string>) {
-      expect(&*str.begin(), in_data_range);
-      expect(&*str.end(), in_data_range);
+      expect(&*str.begin(), reuses_data_memory);
+      expect(&*str.end(), reuses_data_memory);
     }
   });
 
@@ -117,7 +111,7 @@ auto decode_tests(Builder &_, Callable &&do_decode) {
 
   _.test("dict", [do_decode]() {
     auto data = make_data<InType>("d4:spami42ee");
-    auto in_data_range = in_range(data);
+    auto reuses_data_memory = reuses_memory(data);
 
     auto value = do_decode(data);
     auto dict = get<typename OutType::dict>(value);
@@ -126,8 +120,8 @@ auto decode_tests(Builder &_, Callable &&do_decode) {
     auto str = dict.find("spam")->first;
     expect(str, equal_to("spam"));
     if constexpr (bencode::detail::is_view_v<typename OutType::string>) {
-      expect(&*str.begin(), in_data_range);
-      expect(&*str.end(), in_data_range);
+      expect(&*str.begin(), reuses_data_memory);
+      expect(&*str.end(), reuses_data_memory);
     }
   });
 
