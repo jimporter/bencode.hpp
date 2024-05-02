@@ -409,33 +409,33 @@ namespace bencode {
       for(int i = 0; i != std::numeric_limits<Integer>::digits10; i++) {
         if(begin == end)
           throw end_of_input_error();
-        if(!std::isdigit(*begin))
+        if(!std::isdigit(static_cast<char>(*begin)))
           return value;
 
         if constexpr(std::is_signed_v<Integer>)
-          value = value * 10 + (*begin++ - '0') * sgn;
+          value = value * 10 + (static_cast<char>(*begin++) - '0') * sgn;
         else
-          value = value * 10 + (*begin++ - '0');
+          value = value * 10 + (static_cast<char>(*begin++) - '0');
       }
       if(begin == end)
         throw end_of_input_error();
 
       // We're approaching the limits of what `Integer` can hold. Check for
       // overflow.
-      if(std::isdigit(*begin)) {
+      if(std::isdigit(static_cast<char>(*begin))) {
         Integer digit;
         if constexpr(std::is_signed_v<Integer>) {
-          digit = (*begin++ - '0') * sgn;
+          digit = (static_cast<char>(*begin++) - '0') * sgn;
           check_over_underflow(value, digit, sgn);
         } else {
-          digit = (*begin++ - '0');
+          digit = (static_cast<char>(*begin++) - '0');
           check_overflow(value, digit);
         }
         value = value * 10 + digit;
       }
 
       // Still more digits? That's too many!
-      if(std::isdigit(*begin)) {
+      if(std::isdigit(static_cast<char>(*begin))) {
         if(sgn == 1)
           throw std::overflow_error("integer overflow");
         else
@@ -447,10 +447,10 @@ namespace bencode {
 
     template<typename Integer, typename Iter>
     Integer decode_int(Iter &begin, Iter end) {
-      assert(*begin == 'i');
+      assert(static_cast<char>(*begin) == 'i');
       ++begin;
       Integer sgn = 1;
-      if(*begin == '-') {
+      if(static_cast<char>(*begin) == '-') {
         if constexpr(std::is_unsigned_v<Integer>) {
           throw std::underflow_error("expected unsigned integer");
         } else {
@@ -460,7 +460,7 @@ namespace bencode {
       }
 
       Integer value = decode_digits<Integer>(begin, end, sgn);
-      if(*begin != 'e')
+      if(static_cast<char>(*begin) != 'e')
         throw syntax_error("expected 'e' token");
 
       ++begin;
@@ -520,11 +520,11 @@ namespace bencode {
 
     template<typename String, typename Iter>
     String decode_str(Iter &begin, Iter end) {
-      assert(std::isdigit(*begin));
+      assert(std::isdigit(static_cast<char>(*begin)));
       std::size_t len = decode_digits<std::size_t>(begin, end);
       if(begin == end)
         throw end_of_input_error();
-      if(*begin != ':')
+      if(static_cast<char>(*begin) != ':')
         throw syntax_error("expected ':' token");
       ++begin;
 
@@ -577,7 +577,7 @@ namespace bencode {
           if(begin == end)
             throw end_of_input_error();
 
-          if(*begin == 'e') {
+          if(static_cast<char>(*begin) == 'e') {
             if(!state.empty()) {
               ++begin;
               state.pop();
@@ -586,22 +586,22 @@ namespace bencode {
             }
           } else {
             if(!state.empty() && Traits::index(*state.top()) == 3 /* dict */) {
-              if(!std::isdigit(*begin))
+              if(!std::isdigit(static_cast<char>(*begin)))
                 throw syntax_error("expected string start token for dict key");
               dict_key = detail::decode_str<string>(begin, end);
               if(begin == end)
                 throw end_of_input_error();
             }
 
-            if(*begin == 'i') {
+            if(static_cast<char>(*begin) == 'i') {
               store(detail::decode_int<integer>(begin, end));
-            } else if(*begin == 'l') {
+            } else if(static_cast<char>(*begin) == 'l') {
               ++begin;
               state.push(store( list{} ));
-            } else if(*begin == 'd') {
+            } else if(static_cast<char>(*begin) == 'd') {
               ++begin;
               state.push(store( dict{} ));
-            } else if(std::isdigit(*begin)) {
+            } else if(std::isdigit(static_cast<char>(*begin))) {
               store(detail::decode_str<string>(begin, end));
             } else {
               throw syntax_error("unexpected type token");
