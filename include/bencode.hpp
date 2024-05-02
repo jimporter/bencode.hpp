@@ -346,6 +346,28 @@ namespace bencode {
     template<typename T>
     inline constexpr bool is_iterable_v = is_iterable<T>::value;
 
+    template<typename T>
+    std::string quoted_key(const T &key) {
+      std::string s;
+      s.reserve(key.size() + 2);
+      s.push_back('"');
+      for (auto &&i : key) {
+        char c = static_cast<char>(i);
+        switch(c) {
+        case '\n':
+          s.append("\\n");
+          break;
+        case '"':
+          s.append("\\\"");
+          break;
+        default:
+          s.push_back(c);
+        }
+      }
+      s.push_back('"');
+      return s;
+    }
+
     template<typename Integer>
     inline void check_overflow(Integer value, Integer digit) {
       using limits = std::numeric_limits<Integer>;
@@ -541,7 +563,7 @@ namespace bencode {
           auto i = p->emplace(std::move(dict_key), std::move(thing));
           if(!i.second) {
             throw syntax_error(
-              "duplicated key in dict: " + std::string(i.first->first)
+              "duplicated key in dict: " + quoted_key(i.first->first)
             );
           }
           return &i.first->second;
