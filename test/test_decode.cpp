@@ -415,10 +415,10 @@ suite<> test_decode("test decoder", [](auto &_) {
     });
 
     _.test("duplicated key", []() {
-      expect(
-        []() { bencode::decode("d3:fooi1e3:fooi1ee"); },
-        decode_error<bencode::syntax_error>("duplicated key in dict: foo", 17)
-      );
+      expect([]() { bencode::decode("d3:fooi1e3:fooi1ee"); },
+             decode_error<bencode::syntax_error>(
+               "duplicated key in dict: \"foo\"", 17
+             ));
     });
   });
 
