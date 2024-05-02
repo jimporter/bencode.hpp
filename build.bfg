@@ -12,6 +12,7 @@ install(includes)
 test_files = find_paths('test/**/*.cpp')
 
 try:
+    boost = package('boost')
     libmettle = package('mettle')
     mettle = test_driver(['mettle', '--output=verbose'])
 
@@ -20,7 +21,7 @@ try:
             src.stripext().suffix,
             files=src,
             includes=includes,
-            packages=[libmettle]
+            packages=[boost, libmettle]
         ), driver=mettle)
 except PackageResolutionError:
     warning('mettle not found; tests disabled')
