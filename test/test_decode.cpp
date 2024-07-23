@@ -72,60 +72,65 @@ auto decode_error(const std::string &what, std::size_t offset) {
 }
 
 template<typename InType, typename Builder, typename Callable>
-auto decode_tests(Builder &_, Callable &&do_decode) {
-  using OutType = fixture_type_t<decltype(_)>;
+auto decode_tests(Builder &_, Callable &&decode) {
   using boost::get;
   using std::get;
 
-  _.test("integer", [do_decode]() {
+  using OutType = fixture_type_t<decltype(_)>;
+  using Integer = typename OutType::integer;
+  using String = typename OutType::string;
+  using List = typename OutType::list;
+  using Dict = typename OutType::dict;
+
+  _.test("integer", [decode]() {
     auto pos = make_data<InType>("i42e");
-    auto pos_value = do_decode(pos);
-    expect(get<typename OutType::integer>(pos_value), equal_to(42));
+    auto pos_value = decode(pos);
+    expect(get<Integer>(pos_value), equal_to(42));
 
     auto neg = make_data<InType>("i-42e");
-    auto neg_value = do_decode(neg);
-    expect(get<typename OutType::integer>(neg_value), equal_to(-42));
+    auto neg_value = decode(neg);
+    expect(get<Integer>(neg_value), equal_to(-42));
   });
 
-  _.test("string", [do_decode]() {
+  _.test("string", [decode]() {
     auto data = make_data<InType>("4:spam");
     // Silence GCC < 10.
     [[maybe_unused]] auto within_data_memory = within_memory(data);
 
-    auto value = do_decode(data);
-    auto str = get<typename OutType::string>(value);
+    auto value = decode(data);
+    auto str = get<String>(value);
     expect(str, equal_to("spam"));
-    if constexpr(bencode::detail::is_view<typename OutType::string>) {
+    if constexpr(bencode::detail::is_view<String>) {
       expect(&*str.begin(), within_data_memory);
       expect(&*str.end(), within_data_memory);
     }
   });
 
-  _.test("list", [do_decode]() {
+  _.test("list", [decode]() {
     auto data = make_data<InType>("li42ee");
-    auto value = do_decode(data);
-    auto list = get<typename OutType::list>(value);
-    expect(get<typename OutType::integer>(list[0]), equal_to(42));
+    auto value = decode(data);
+    auto list = get<List>(value);
+    expect(get<Integer>(list[0]), equal_to(42));
   });
 
-  _.test("dict", [do_decode]() {
+  _.test("dict", [decode]() {
     auto data = make_data<InType>("d4:spami42ee");
     // Silence GCC < 10.
     [[maybe_unused]] auto within_data_memory = within_memory(data);
 
-    auto value = do_decode(data);
-    auto dict = get<typename OutType::dict>(value);
-    expect(get<typename OutType::integer>(dict["spam"]), equal_to(42));
+    auto value = decode(data);
+    auto dict = get<Dict>(value);
+    expect(get<Integer>(dict["spam"]), equal_to(42));
 
     auto str = dict.find("spam")->first;
     expect(str, equal_to("spam"));
-    if constexpr(bencode::detail::is_view<typename OutType::string>) {
+    if constexpr(bencode::detail::is_view<String>) {
       expect(&*str.begin(), within_data_memory);
       expect(&*str.end(), within_data_memory);
     }
   });
 
-  _.test("nested", [do_decode]() {
+  _.test("nested", [decode]() {
     auto data = make_data<InType>(
       "d"
       "3:one" "i1e"
@@ -133,20 +138,12 @@ auto decode_tests(Builder &_, Callable &&do_decode) {
       "3:two" "l" "i3e" "3:foo" "i4e" "e"
       "e"
     );
-    auto value = do_decode(data);
-
-    auto dict = get<typename OutType::dict>(value);
-    expect(get<typename OutType::integer>(dict["one"]), equal_to(1));
-
-    expect(get<typename OutType::string>(
-             get<typename OutType::list>(dict["two"])[1]
-           ), equal_to("foo"));
-
-    expect(get<typename OutType::integer>(
-             get<typename OutType::dict>(
-               get<typename OutType::list>(dict["three"])[0]
-             )["foo"]
-           ), equal_to(0));
+    auto value = decode(data);
+    auto dict = get<Dict>(value);
+    expect(get<Integer>(dict["one"]), equal_to(1));
+    expect(get<String>(get<List>(dict["two"])[1]), equal_to("foo"));
+    expect(get<Integer>(get<Dict>(get<List>(dict["three"])[0])["foo"]),
+           equal_to(0));
   });
 }
 
