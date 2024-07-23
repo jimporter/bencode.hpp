@@ -107,13 +107,28 @@ pointer's value in-place.
 If the buffer holding the bencoded data is stable (i.e. won't change or be
 destroyed until you're done working with the parsed representation), you can
 decode the data as a *view* on the buffer to save memory. This results in all
-parsed strings being nothing more than pointers pointing to slices of your
-buffer. Simply add `_view` to the functions/types to take advantage of this:
+parsed strings being `std::string_view`s pointing to slices of your buffer.
+Simply add `_view` to the functions/types to take advantage of this:
 
 ```c++
 std::string buf = "3:foo";
 bencode::data_view data = bencode::decode_view(buf); // or `decode_view_some`
 auto value = std::get<bencode::string_view>(data);
+```
+
+#### Other Character Types
+
+In addition to working with bencoded data as `char`s, you can use other
+underlying character types: `char8_t` or `std::byte`. For the former, the
+default bencoded string type is naturally `std::u8string` (or
+`std::u8string_view` for data views). For the latter, the string type is
+`std::vector<std::byte>` (or `std::span<std::byte>`). The bencode data types for
+these are prefixed with `u8` and `b`, respectively:
+
+```c++
+std::vector<std::byte> buf = get_buffer();
+bencode::bdata = bencode::decode(buf);
+auto value = std::get<bencode::bstring>(data);
 ```
 
 #### Errors

@@ -27,6 +27,47 @@
 
 namespace bencode {
 
+  // Some usesful concepts/traits for managing types.
+  namespace detail {
+
+    template<typename T> constexpr bool is_view = false;
+    template<typename T> constexpr bool is_view<std::basic_string_view<T>> =
+      true;
+    template<typename T> constexpr bool is_view<std::span<T>> = true;
+
+    template<typename T>
+    concept iterable = requires(T &t) {
+      std::begin(t);
+      std::end(t);
+    };
+
+    template<typename T>
+    struct string_for_char {
+      static_assert(sizeof(T) == 1);
+      using type = std::vector<T>;
+    };
+    template<typename T>
+    struct string_view_for_char {
+      static_assert(sizeof(T) == 1);
+      using type = std::span<T>;
+    };
+
+    template<>
+    struct string_for_char<char> { using type = std::string; };
+    template<>
+    struct string_view_for_char<char> { using type = std::string_view; };
+    template<>
+    struct string_for_char<char8_t> { using type = std::u8string; };
+    template<>
+    struct string_view_for_char<char8_t> { using type = std::u8string_view; };
+
+    template<typename T> using string_for_char_t =
+      typename string_for_char<T>::type;
+    template<typename T> using string_view_for_char_t =
+      typename string_view_for_char<T>::type;
+
+  }
+
   template<template<typename ...> typename T>
   struct variant_traits;
 
@@ -236,16 +277,41 @@ namespace bencode {
     }
   };
 
-  using data = basic_data<std::variant, long long, std::string, std::vector,
-                          map_proxy>;
-  using data_view = basic_data<std::variant, long long, std::string_view,
-                               std::vector, map_proxy>;
+  template<template<typename ...> typename Variant, typename Char>
+  using basic_data_for_char_t = basic_data<
+    Variant, long long, detail::string_for_char_t<Char>, std::vector, map_proxy
+  >;
+
+  template<template<typename ...> typename Variant, typename Char>
+  using basic_data_view_for_char_t = basic_data<
+    Variant, long long, detail::string_view_for_char_t<Char>, std::vector,
+    map_proxy
+  >;
+
+  template<typename Char> using data_for_char_t =
+    basic_data_for_char_t<std::variant, Char>;
+  template<typename Char> using data_view_for_char_t =
+    basic_data_view_for_char_t<std::variant, Char>;
+
+  using data        = data_for_char_t     <char>;
+  using data_view   = data_view_for_char_t<char>;
+  using u8data      = data_for_char_t     <char8_t>;
+  using u8data_view = data_view_for_char_t<char8_t>;
+  using bdata       = data_for_char_t     <std::byte>;
+  using bdata_view  = data_view_for_char_t<std::byte>;
 
 #ifdef BENCODE_HAS_BOOST
-  using boost_data = basic_data<boost::variant, long long, std::string,
-                                std::vector, map_proxy>;
-  using boost_data_view = basic_data<boost::variant, long long,
-                                     std::string_view, std::vector, map_proxy>;
+  template<typename Char> using boost_data_for_char_t =
+    basic_data_for_char_t<boost::variant, Char>;
+  template<typename Char> using boost_data_view_for_char_t =
+    basic_data_view_for_char_t<boost::variant, Char>;
+
+  using boost_data        = boost_data_for_char_t     <char>;
+  using boost_data_view   = boost_data_view_for_char_t<char>;
+  using boost_u8data      = boost_data_for_char_t     <char8_t>;
+  using boost_u8data_view = boost_data_view_for_char_t<char8_t>;
+  using boost_bdata       = boost_data_for_char_t     <std::byte>;
+  using boost_bdata_view  = boost_data_view_for_char_t<std::byte>;
 
   template<>
   struct variant_traits<boost::variant> {
@@ -273,15 +339,22 @@ namespace bencode {
   };
 #endif
 
-  using integer = data::integer;
-  using string = data::string;
-  using list = data::list;
-  using dict = data::dict;
-
-  using integer_view = data_view::integer;
+  using integer     = data::integer;
+  using string      = data::string;
+  using list        = data::list;
+  using dict        = data::dict;
   using string_view = data_view::string;
-  using list_view = data_view::list;
-  using dict_view = data_view::dict;
+  using dict_view   = data_view::dict;
+
+  using u8string      = u8data::string;
+  using u8dict        = u8data::dict;
+  using u8string_view = u8data_view::string;
+  using u8dict_view   = u8data_view::dict;
+
+  using bstring      = bdata::string;
+  using bdict        = bdata::dict;
+  using bstring_view = bdata_view::string;
+  using bdict_view   = bdata_view::dict;
 
   enum eof_behavior {
     check_eof,
@@ -323,17 +396,6 @@ namespace bencode {
 
   namespace detail {
 
-    template<typename T> constexpr bool is_view = false;
-    template<typename T> constexpr bool is_view<std::basic_string_view<T>>
-      = true;
-    template<typename T> constexpr bool is_view<std::span<T>> = true;
-
-    template<typename T>
-    concept iterable = requires(T &t) {
-      std::begin(t);
-      std::end(t);
-    };
-
     template<typename T>
     concept sequence = iterable<T> && !std::convertible_to<T, std::string_view>;
 
@@ -359,6 +421,14 @@ namespace bencode {
       }
       s.push_back('"');
       return s;
+    }
+
+    template<typename T>
+    std::size_t any_strlen(const T *s) {
+      assert(s);
+      const T *curr;
+      for(curr = s; static_cast<bool>(*curr); ++curr);
+      return curr - s;
     }
 
     template<std::integral Integer>
@@ -474,7 +544,7 @@ namespace bencode {
 
     template<typename String, std::input_iterator Iter>
     inline String decode_chars(Iter &begin, Iter end, std::size_t len) {
-      String value(len, 0);
+      String value(len, decltype(*end){});
       for(std::size_t i = 0; i < len; i++) {
         if(begin == end)
           throw end_of_input_error();
@@ -597,12 +667,12 @@ namespace bencode {
       return result;
     }
 
-    template<typename Data>
-    Data do_decode(std::istream &s, eof_behavior e, bool all) {
+    template<typename Data, typename Char>
+    Data do_decode(std::basic_istream<Char> &s, eof_behavior e, bool all) {
       static_assert(!detail::is_view<typename Data::string>,
                     "reading from stream not supported for data views");
 
-      std::istreambuf_iterator<char> begin(s), end;
+      std::istreambuf_iterator<Char> begin(s), end;
       auto result = detail::do_decode<Data>(begin, end, all);
       // If we hit EOF, update the parent stream.
       if(e == check_eof && begin == end)
@@ -611,6 +681,8 @@ namespace bencode {
     }
 
   }
+
+  // Basic decoding
 
   template<typename Data, std::input_iterator Iter>
   inline Data basic_decode(Iter begin, Iter end) {
@@ -623,18 +695,19 @@ namespace bencode {
     return basic_decode<Data>(std::begin(s), std::end(s));
   }
 
-  template<typename Data>
-  inline Data basic_decode(const char *s) {
-    return basic_decode<Data>(s, s + std::strlen(s));
+  template<typename Data, typename Char>
+  inline Data basic_decode(const Char *s) {
+    return basic_decode<Data>(s, s + detail::any_strlen(s));
   }
 
-  template<typename Data>
-  inline Data basic_decode(const char *s, std::size_t length) {
+  template<typename Data, typename Char>
+  inline Data basic_decode(const Char *s, std::size_t length) {
     return basic_decode<Data>(s, s + length);
   }
 
-  template<typename Data>
-  inline Data basic_decode(std::istream &s, eof_behavior e = check_eof) {
+  template<typename Data, typename Char>
+  inline Data basic_decode(std::basic_istream<Char> &s,
+                           eof_behavior e = check_eof) {
     return detail::do_decode<Data>(s, e, true);
   }
 
@@ -643,60 +716,125 @@ namespace bencode {
     return detail::do_decode<Data>(begin, end, false);
   }
 
-  template<typename Data>
-  inline Data basic_decode_some(const char *&s) {
-    return basic_decode_some<Data>(s, s + std::strlen(s));
+  template<typename Data, typename Char>
+  inline Data basic_decode_some(const Char *&s) {
+    return basic_decode_some<Data>(s, s + detail::any_strlen(s));
   }
 
-  template<typename Data>
-  inline Data basic_decode_some(const char *&s, std::size_t length) {
+  template<typename Data, typename Char>
+  inline Data basic_decode_some(const Char *&s, std::size_t length) {
     return basic_decode_some<Data>(s, s + length);
   }
 
-  template<typename Data>
-  inline Data basic_decode_some(std::istream &s, eof_behavior e = check_eof) {
+  template<typename Data, typename Char>
+  inline Data basic_decode_some(std::basic_istream<Char> &s,
+                                eof_behavior e = check_eof) {
     return detail::do_decode<Data>(s, e, false);
   }
 
+  // Decoding based on character types
+
+  template<template<typename> typename Data, typename Iter>
+  inline auto basic_decode_for_char_t(const Iter &begin, Iter end) {
+    using Char = std::remove_cv_t<std::remove_reference_t<decltype(*begin)>>;
+    return basic_decode<Data<Char>>(begin, end);
+  }
+
+  template<template<typename> typename Data, typename String>
+  inline auto basic_decode_for_char_t(const String &s)
+  requires(detail::iterable<String> && !std::is_array_v<String>) {
+    return basic_decode_for_char_t<Data>(std::begin(s), std::end(s));
+  }
+
+  template<template<typename> typename Data, typename Char>
+  inline auto basic_decode_for_char_t(const Char *s) {
+    return basic_decode_for_char_t<Data>(s, s + detail::any_strlen(s));
+  }
+
+  template<template<typename> typename Data, typename Char>
+  inline auto basic_decode_for_char_t(const Char *s, std::size_t length) {
+    return basic_decode_for_char_t<Data>(s, s + length);
+  }
+
+  template<template<typename> typename Data, typename Char>
+  inline auto basic_decode_for_char_t(std::basic_istream<Char> &s,
+                                      eof_behavior e = check_eof) {
+    return basic_decode<Data<Char>>(s, e);
+  }
+
+  template<template<typename> typename Data, typename Iter>
+  inline auto basic_decode_some_for_char_t(Iter &begin, Iter end) {
+    using Char = std::remove_cv_t<std::remove_reference_t<decltype(*begin)>>;
+    return basic_decode_some<Data<Char>>(begin, end);
+  }
+
+  template<template<typename> typename Data, typename Char>
+  inline auto basic_decode_some_for_char_t(const Char *&s) {
+    return basic_decode_some_for_char_t<Data>(s, s + detail::any_strlen(s));
+  }
+
+  template<template<typename> typename Data, typename Char>
+  inline auto basic_decode_some_for_char_t(const Char *&s, std::size_t length) {
+    return basic_decode_some_for_char_t<Data>(s, s + length);
+  }
+
+  template<template<typename> typename Data, typename Char>
+  inline auto basic_decode_some_for_char_t(std::basic_istream<Char> &s,
+                                           eof_behavior e = check_eof) {
+    return basic_decode_some<Data<Char>>(s, e);
+  }
+
+  // Simple decoding
+
   template<typename ...T>
-  inline data decode(T &&...t) {
-    return basic_decode<data>(std::forward<T>(t)...);
+  inline auto decode(T &&...t) {
+    return basic_decode_for_char_t<data_for_char_t>(std::forward<T>(t)...);
   }
 
   template<typename ...T>
-  inline data decode_some(T &&...t) {
-    return basic_decode_some<data>(std::forward<T>(t)...);
+  inline auto decode_some(T &&...t) {
+    return basic_decode_some_for_char_t<data_for_char_t>(std::forward<T>(t)...);
   }
 
   template<typename ...T>
-  inline data_view decode_view(T &&...t) {
-    return basic_decode<data_view>(std::forward<T>(t)...);
+  inline auto decode_view(T &&...t) {
+    return basic_decode_for_char_t<data_view_for_char_t>(std::forward<T>(t)...);
   }
 
   template<typename ...T>
-  inline data_view decode_view_some(T &&...t) {
-    return basic_decode_some<data_view>(std::forward<T>(t)...);
+  inline auto decode_view_some(T &&...t) {
+    return basic_decode_some_for_char_t<data_view_for_char_t>(
+      std::forward<T>(t)...
+    );
   }
 
 #ifdef BENCODE_HAS_BOOST
   template<typename ...T>
-  inline boost_data boost_decode(T &&...t) {
-    return basic_decode<boost_data>(std::forward<T>(t)...);
+  inline auto boost_decode(T &&...t) {
+    return basic_decode_for_char_t<boost_data_for_char_t>(
+      std::forward<T>(t)...
+    );
   }
 
   template<typename ...T>
-  inline boost_data boost_decode_some(T &&...t) {
-    return basic_decode_some<boost_data>(std::forward<T>(t)...);
+  inline auto boost_decode_some(T &&...t) {
+    return basic_decode_some_for_char_t<boost_data_for_char_t>(
+      std::forward<T>(t)...
+    );
   }
 
   template<typename ...T>
-  inline boost_data_view boost_decode_view(T &&...t) {
-    return basic_decode<boost_data_view>(std::forward<T>(t)...);
+  inline auto boost_decode_view(T &&...t) {
+    return basic_decode_for_char_t<boost_data_view_for_char_t>(
+      std::forward<T>(t)...
+    );
   }
 
   template<typename ...T>
-  inline boost_data_view boost_decode_view_some(T &&...t) {
-    return basic_decode_some<boost_data_view>(std::forward<T>(t)...);
+  inline auto boost_decode_view_some(T &&...t) {
+    return basic_decode_some_for_char_t<boost_data_view_for_char_t>(
+      std::forward<T>(t)...
+    );
   }
 #endif
 
