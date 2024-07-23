@@ -6,6 +6,8 @@
 - `bencode::data` (and `bencode::basic_data`, etc) now support `operator []` and
   `at` member functions to get list/dictionary elements
 - Decoding functions now accept a pointer plus length as input
+- Add support for decoding data from other character types (`char8_t` or
+  `std::byte`), preserving the underlying character type
 
 ### Breaking changes
 - To decode only the next bencode object in a string or stream, you must now
