@@ -587,7 +587,7 @@ namespace bencode {
           }
         } while(!state.empty());
 
-        if (all && begin != end)
+        if(all && begin != end)
           throw syntax_error("extraneous character");
       } catch(const std::exception &e) {
         throw decode_error(e.what(), std::distance(orig_begin, begin),

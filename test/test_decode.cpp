@@ -121,7 +121,7 @@ auto decode_tests(Builder &_, Callable &&do_decode) {
 
     auto str = dict.find("spam")->first;
     expect(str, equal_to("spam"));
-    if constexpr (bencode::detail::is_view_v<typename OutType::string>) {
+    if constexpr(bencode::detail::is_view_v<typename OutType::string>) {
       expect(&*str.begin(), within_data_memory);
       expect(&*str.end(), within_data_memory);
     }
