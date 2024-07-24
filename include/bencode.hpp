@@ -512,13 +512,13 @@ namespace bencode {
     template<typename Data, typename Iter>
     Data do_decode(Iter &begin, Iter end, bool all) {
       using Traits = variant_traits_for<Data>;
-      using integer = typename Data::integer;
-      using string  = typename Data::string;
-      using list    = typename Data::list;
-      using dict    = typename Data::dict;
+      using Integer = typename Data::integer;
+      using String  = typename Data::string;
+      using List    = typename Data::list;
+      using Dict    = typename Data::dict;
 
       Iter orig_begin = begin;
-      typename Data::string dict_key;
+      String dict_key;
       Data result;
       std::stack<Data*> state;
 
@@ -534,10 +534,10 @@ namespace bencode {
         if(state.empty()) {
           result = std::move(thing);
           return &result;
-        } else if(auto p = Traits::template get_if<list>(state.top())) {
+        } else if(auto p = Traits::template get_if<List>(state.top())) {
           p->push_back(std::move(thing));
           return &p->back();
-        } else if(auto p = Traits::template get_if<dict>(state.top())) {
+        } else if(auto p = Traits::template get_if<Dict>(state.top())) {
           auto i = p->emplace(std::move(dict_key), std::move(thing));
           if(!i.second) {
             throw syntax_error(
@@ -566,21 +566,21 @@ namespace bencode {
             if(!state.empty() && Traits::index(*state.top()) == 3 /* dict */) {
               if(!std::isdigit(*begin))
                 throw syntax_error("expected string start token for dict key");
-              dict_key = detail::decode_str<string>(begin, end);
+              dict_key = detail::decode_str<String>(begin, end);
               if(begin == end)
                 throw end_of_input_error();
             }
 
             if(*begin == 'i') {
-              store(detail::decode_int<integer>(begin, end));
+              store(detail::decode_int<Integer>(begin, end));
             } else if(*begin == 'l') {
               ++begin;
-              state.push(store( list{} ));
+              state.push(store( List{} ));
             } else if(*begin == 'd') {
               ++begin;
-              state.push(store( dict{} ));
+              state.push(store( Dict{} ));
             } else if(std::isdigit(*begin)) {
-              store(detail::decode_str<string>(begin, end));
+              store(detail::decode_str<String>(begin, end));
             } else {
               throw syntax_error("unexpected type token");
             }
