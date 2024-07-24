@@ -618,10 +618,10 @@ namespace bencode {
     return detail::do_decode<Data>(b, end, true);
   }
 
-  template<typename Data, typename String,
-           std::enable_if_t<detail::is_iterable_v<String> &&
-                            !std::is_array_v<String>, bool> = true>
-  inline Data basic_decode(const String &s) {
+  template<typename Data, typename String>
+  inline auto basic_decode(const String &s) -> std::enable_if_t<
+    detail::is_iterable_v<String> && !std::is_array_v<String>,
+  Data> {
     return basic_decode<Data>(std::begin(s), std::end(s));
   }
 
