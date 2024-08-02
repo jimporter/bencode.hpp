@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cctype>
+#include <charconv>
 #include <cstddef>
 #include <iostream>
 #include <iterator>
@@ -18,11 +19,6 @@
 #include <string_view>
 #include <variant>
 #include <vector>
-
-#if __has_include(<charconv>)
-#  include <charconv>
-#  define BENCODE_HAS_CHARCONV
-#endif
 
 #if __has_include(<boost/variant.hpp>)
 #  include <boost/variant.hpp>
@@ -728,7 +724,6 @@ namespace bencode {
 
     template<typename T>
     void write_integer(std::ostream &os, T value) {
-#ifdef BENCODE_HAS_CHARCONV
       // digits10 tells how many base-10 digits can fully fit in T, so we add 1
       // for the digit that can only partially fit, plus one more for the
       // negative sign.
@@ -737,10 +732,6 @@ namespace bencode {
       if(r.ec != std::errc())
         throw std::system_error(std::make_error_code(r.ec));
       os.write(buf, r.ptr - buf);
-#else
-      auto s = std::to_string(value);
-      os.write(s.c_str(), s.size());
-#endif
     }
   }
 
