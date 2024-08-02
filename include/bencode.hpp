@@ -10,6 +10,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <span>
 #include <sstream>
 #include <stack>
 #include <stdexcept>
@@ -326,25 +327,16 @@ namespace bencode {
 
   namespace detail {
 
-    template<typename>
-    struct is_view : std::false_type {};
+    template<typename T> constexpr bool is_view = false;
+    template<typename T> constexpr bool is_view<std::basic_string_view<T>>
+      = true;
+    template<typename T> constexpr bool is_view<std::span<T>> = true;
 
     template<typename T>
-    struct is_view<std::basic_string_view<T>> : std::true_type {};
-
-    template<typename T>
-    inline constexpr bool is_view_v = is_view<T>::value;
-
-    template<typename, typename = std::void_t<>>
-    struct is_iterable : std::false_type {};
-
-    template<typename T>
-    struct is_iterable<T, std::void_t<
-      decltype(std::begin(std::declval<T&>()), std::end(std::declval<T&>()))
-    >> : std::true_type {};
-
-    template<typename T>
-    inline constexpr bool is_iterable_v = is_iterable<T>::value;
+    concept iterable = requires(T &t) {
+      std::begin(t);
+      std::end(t);
+    };
 
     template<typename Integer>
     inline void check_overflow(Integer value, Integer digit) {
@@ -599,7 +591,7 @@ namespace bencode {
 
     template<typename Data>
     Data do_decode(std::istream &s, eof_behavior e, bool all) {
-      static_assert(!detail::is_view_v<typename Data::string>,
+      static_assert(!detail::is_view<typename Data::string>,
                     "reading from stream not supported for data views");
 
       std::istreambuf_iterator<char> begin(s), end;
@@ -619,9 +611,8 @@ namespace bencode {
   }
 
   template<typename Data, typename String>
-  inline auto basic_decode(const String &s) -> std::enable_if_t<
-    detail::is_iterable_v<String> && !std::is_array_v<String>,
-  Data> {
+  inline Data basic_decode(const String &s)
+  requires(detail::iterable<String> && !std::is_array_v<String>) {
     return basic_decode<Data>(std::begin(s), std::end(s));
   }
 

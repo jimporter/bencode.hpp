@@ -30,16 +30,14 @@ struct at_eof : matcher_tag {
   }
 };
 
-template<typename T,
-         typename std::enable_if_t<bencode::detail::is_iterable_v<T>, int> = 0>
-auto within_memory(const T &t) {
-  return in_interval(&*std::begin(t), &*std::end(t), interval::closed);
-}
-
-template<typename T,
-         typename std::enable_if_t<!bencode::detail::is_iterable_v<T>, int> = 0>
+template<typename T>
 auto within_memory(const T &) {
   return is_not(anything());
+}
+
+template<bencode::detail::iterable T>
+auto within_memory(const T &t) {
+  return in_interval(&*std::begin(t), &*std::end(t), interval::closed);
 }
 
 template<typename T>
@@ -97,7 +95,7 @@ auto decode_tests(Builder &_, Callable &&do_decode) {
     auto value = do_decode(data);
     auto str = get<typename OutType::string>(value);
     expect(str, equal_to("spam"));
-    if constexpr(bencode::detail::is_view_v<typename OutType::string>) {
+    if constexpr(bencode::detail::is_view<typename OutType::string>) {
       expect(&*str.begin(), within_data_memory);
       expect(&*str.end(), within_data_memory);
     }
@@ -121,7 +119,7 @@ auto decode_tests(Builder &_, Callable &&do_decode) {
 
     auto str = dict.find("spam")->first;
     expect(str, equal_to("spam"));
-    if constexpr(bencode::detail::is_view_v<typename OutType::string>) {
+    if constexpr(bencode::detail::is_view<typename OutType::string>) {
       expect(&*str.begin(), within_data_memory);
       expect(&*str.end(), within_data_memory);
     }

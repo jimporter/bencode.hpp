@@ -10,8 +10,8 @@ library for serializing data from your program.
 
 ## Requirements
 
-This library has no external dependencies and only requires a C++17 compiler.
-It's been tested on [Clang][clang] 7+, [GCC][gcc] 7+, and [MSVC][msvc] 2017+.
+This library has no external dependencies and only requires a C++20 compiler.
+It's been tested on [Clang][clang] 10+, [GCC][gcc] 10+, and [MSVC][msvc] 2022+.
 The unit tests do depend on [mettle][mettle], however.
 
 **Note:** if Boost is installed, bencode.hpp will provide the ability to use
