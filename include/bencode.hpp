@@ -824,9 +824,9 @@ namespace bencode {
 
   template<typename T>
   std::string encode(T &&t) {
-    std::string result;
-    encode(std::back_inserter(result), std::forward<T>(t));
-    return result;
+    std::stringstream ss;
+    encode(std::ostreambuf_iterator(ss), std::forward<T>(t));
+    return ss.str();
   }
 
   template<typename T>
