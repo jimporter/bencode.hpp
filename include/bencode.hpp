@@ -379,9 +379,9 @@ namespace bencode {
           return value;
 
         if constexpr(std::is_signed_v<Integer>)
-          value = value * 10 + (*begin++ - '0') * sgn;
+          value = value * 10 + (*begin++ - u8'0') * sgn;
         else
-          value = value * 10 + (*begin++ - '0');
+          value = value * 10 + (*begin++ - u8'0');
       }
       if(begin == end)
         throw end_of_input_error();
@@ -391,10 +391,10 @@ namespace bencode {
       if(std::isdigit(*begin)) {
         Integer digit;
         if constexpr(std::is_signed_v<Integer>) {
-          digit = (*begin++ - '0') * sgn;
+          digit = (*begin++ - u8'0') * sgn;
           check_over_underflow(value, digit, sgn);
         } else {
-          digit = (*begin++ - '0');
+          digit = (*begin++ - u8'0');
           check_overflow(value, digit);
         }
         value = value * 10 + digit;
@@ -413,10 +413,10 @@ namespace bencode {
 
     template<typename Integer, typename Iter>
     Integer decode_int(Iter &begin, Iter end) {
-      assert(*begin == 'i');
+      assert(*begin == u8'i');
       ++begin;
       Integer sgn = 1;
-      if(*begin == '-') {
+      if(*begin == u8'-') {
         if constexpr(std::is_unsigned_v<Integer>) {
           throw std::underflow_error("expected unsigned integer");
         } else {
@@ -426,7 +426,7 @@ namespace bencode {
       }
 
       Integer value = decode_digits<Integer>(begin, end, sgn);
-      if(*begin != 'e')
+      if(*begin != u8'e')
         throw syntax_error("expected 'e' token");
 
       ++begin;
@@ -490,7 +490,7 @@ namespace bencode {
       std::size_t len = decode_digits<std::size_t>(begin, end);
       if(begin == end)
         throw end_of_input_error();
-      if(*begin != ':')
+      if(*begin != u8':')
         throw syntax_error("expected ':' token");
       ++begin;
 
@@ -543,7 +543,7 @@ namespace bencode {
           if(begin == end)
             throw end_of_input_error();
 
-          if(*begin == 'e') {
+          if(*begin == u8'e') {
             if(!state.empty()) {
               ++begin;
               state.pop();
@@ -559,12 +559,12 @@ namespace bencode {
                 throw end_of_input_error();
             }
 
-            if(*begin == 'i') {
+            if(*begin == u8'i') {
               store(detail::decode_int<Integer>(begin, end));
-            } else if(*begin == 'l') {
+            } else if(*begin == u8'l') {
               ++begin;
               state.push(store( List{} ));
-            } else if(*begin == 'd') {
+            } else if(*begin == u8'd') {
               ++begin;
               state.push(store( Dict{} ));
             } else if(std::isdigit(*begin)) {
@@ -699,11 +699,11 @@ namespace bencode {
     class list_encoder {
     public:
       inline list_encoder(Iter &iter) : iter(iter) {
-        *iter++ = 'l';
+        *iter++ = u8'l';
       }
 
       inline ~list_encoder() {
-        *iter++ = 'e';
+        *iter++ = u8'e';
       }
 
       template<typename T>
@@ -716,11 +716,11 @@ namespace bencode {
     class dict_encoder {
     public:
       inline dict_encoder(Iter &iter) : iter(iter) {
-        *iter++ = 'd';
+        *iter++ = u8'd';
       }
 
       inline ~dict_encoder() {
-        *iter++ = 'e';
+        *iter++ = u8'e';
       }
 
       template<typename T>
@@ -744,15 +744,15 @@ namespace bencode {
 
   template<detail::output_iterator_ref Iter>
   inline void encode(Iter &&iter, integer value) {
-    *iter++ = 'i';
+    *iter++ = u8'i';
     detail::write_integer(iter, value);
-    *iter++ = 'e';
+    *iter++ = u8'e';
   }
 
   template<detail::output_iterator_ref Iter>
   inline void encode(Iter &&iter, const string_view &value) {
     detail::write_integer(iter, value.size());
-    *iter++ = ':';
+    *iter++ = u8':';
     std::copy(value.begin(), value.end(), iter);
   }
 
