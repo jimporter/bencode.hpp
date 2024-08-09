@@ -690,40 +690,47 @@ namespace bencode {
 #endif
 
   namespace detail {
+    template<typename T>
+    concept output_iterator_ref = std::input_or_output_iterator<
+      std::remove_reference_t<T>
+    >;
+
+    template<output_iterator_ref Iter>
     class list_encoder {
     public:
-      inline list_encoder(std::ostream &os) : os(os) {
-        os.put('l');
+      inline list_encoder(Iter &iter) : iter(iter) {
+        *iter++ = 'l';
       }
 
       inline ~list_encoder() {
-        os.put('e');
+        *iter++ = 'e';
       }
 
       template<typename T>
       inline list_encoder & add(T &&value);
     private:
-      std::ostream &os;
+      Iter &iter;
     };
 
+    template<output_iterator_ref Iter>
     class dict_encoder {
     public:
-      inline dict_encoder(std::ostream &os) : os(os) {
-        os.put('d');
+      inline dict_encoder(Iter &iter) : iter(iter) {
+        *iter++ = 'd';
       }
 
       inline ~dict_encoder() {
-        os.put('e');
+        *iter++ = 'e';
       }
 
       template<typename T>
       inline dict_encoder & add(const string_view &key, T &&value);
     private:
-      std::ostream &os;
+      Iter &iter;
     };
 
-    template<typename T>
-    void write_integer(std::ostream &os, T value) {
+    template<detail::output_iterator_ref Iter, typename T>
+    void write_integer(Iter &iter, T value) {
       // digits10 tells how many base-10 digits can fully fit in T, so we add 1
       // for the digit that can only partially fit, plus one more for the
       // negative sign.
@@ -731,89 +738,100 @@ namespace bencode {
       auto r = std::to_chars(buf, buf + sizeof(buf), value);
       if(r.ec != std::errc())
         throw std::system_error(std::make_error_code(r.ec));
-      os.write(buf, r.ptr - buf);
+      std::copy(buf, r.ptr, iter);
     }
   }
 
-  inline void encode(std::ostream &os, integer value) {
-    os.put('i');
-    detail::write_integer(os, value);
-    os.put('e');
+  template<detail::output_iterator_ref Iter>
+  inline void encode(Iter &&iter, integer value) {
+    *iter++ = 'i';
+    detail::write_integer(iter, value);
+    *iter++ = 'e';
   }
 
-  inline void encode(std::ostream &os, const string_view &value) {
-    detail::write_integer(os, value.size());
-    os.put(':');
-    os.write(value.data(), value.size());
+  template<detail::output_iterator_ref Iter>
+  inline void encode(Iter &&iter, const string_view &value) {
+    detail::write_integer(iter, value.size());
+    *iter++ = ':';
+    std::copy(value.begin(), value.end(), iter);
   }
 
-  template<typename T>
-  void encode(std::ostream &os, const std::vector<T> &value) {
-    detail::list_encoder e(os);
+  template<detail::output_iterator_ref Iter, typename T>
+  void encode(Iter &&iter, const std::vector<T> &value) {
+    detail::list_encoder e(iter);
     for(auto &&i : value)
       e.add(i);
   }
 
-  template<typename T>
-  void encode(std::ostream &os, const std::map<string, T> &value) {
-    detail::dict_encoder e(os);
+  template<detail::output_iterator_ref Iter, typename T>
+  void encode(Iter &&iter, const std::map<string, T> &value) {
+    detail::dict_encoder e(iter);
     for(auto &&i : value)
       e.add(i.first, i.second);
   }
 
-  template<typename T>
-  void encode(std::ostream &os, const std::map<string_view, T> &value) {
-    detail::dict_encoder e(os);
+  template<detail::output_iterator_ref Iter, typename T>
+  void encode(Iter &&iter, const std::map<string_view, T> &value) {
+    detail::dict_encoder e(iter);
     for(auto &&i : value)
       e.add(i.first, i.second);
   }
 
-  template<typename K, typename V>
-  void encode(std::ostream &os, const map_proxy<K, V> &value) {
-    encode(os, *value);
+  template<detail::output_iterator_ref Iter, typename K, typename V>
+  void encode(Iter &&iter, const map_proxy<K, V> &value) {
+    encode(iter, *value);
   }
 
   namespace detail {
+    template<std::input_or_output_iterator Iter>
     class encode_visitor {
     public:
-      inline encode_visitor(std::ostream &os) : os(os) {}
+      inline encode_visitor(Iter &iter) : iter(iter) {}
 
       template<typename T>
       void operator ()(T &&operand) const {
-        encode(os, std::forward<T>(operand));
+        encode(iter, std::forward<T>(operand));
       }
     private:
-      std::ostream &os;
+      Iter &iter;
     };
   }
 
-  template<template<typename ...> typename Variant, typename I, typename S,
+  template<detail::output_iterator_ref Iter,
+           template<typename ...> typename Variant, typename I, typename S,
            template<typename ...> typename L, template<typename ...> typename D>
-  void encode(std::ostream &os, const basic_data<Variant, I, S, L, D> &value) {
-    variant_traits<Variant>::visit(detail::encode_visitor(os), value);
+  void encode(Iter &&iter, const basic_data<Variant, I, S, L, D> &value) {
+    variant_traits<Variant>::visit(detail::encode_visitor(iter), value);
   }
 
   namespace detail {
+    template<detail::output_iterator_ref Iter>
     template<typename T>
-    inline list_encoder & list_encoder::add(T &&value) {
-      encode(os, std::forward<T>(value));
+    inline list_encoder<Iter> & list_encoder<Iter>::add(T &&value) {
+      encode(iter, std::forward<T>(value));
       return *this;
     }
 
+    template<detail::output_iterator_ref Iter>
     template<typename T>
-    inline dict_encoder &
-    dict_encoder::add(const string_view &key, T &&value) {
-      encode(os, key);
-      encode(os, std::forward<T>(value));
+    inline dict_encoder<Iter> &
+    dict_encoder<Iter>::add(const string_view &key, T &&value) {
+      encode(iter, key);
+      encode(iter, std::forward<T>(value));
       return *this;
     }
   }
 
   template<typename T>
   std::string encode(T &&t) {
-    std::stringstream ss;
-    encode(ss, std::forward<T>(t));
-    return ss.str();
+    std::string result;
+    encode(std::back_inserter(result), std::forward<T>(t));
+    return result;
+  }
+
+  template<typename T>
+  void encode(std::ostream &os, T &&t) {
+    encode(std::ostreambuf_iterator(os), std::forward<T>(t));
   }
 
 }

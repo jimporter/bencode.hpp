@@ -129,4 +129,65 @@ suite<> test_encode("test encoder", [](auto &_) {
     });
   });
 
+  subsuite<std::stringstream>(_, "to std::ostream", [](auto &_) {
+    _.test("integer", [](std::stringstream &ss) {
+      bencode::encode(ss, 42);
+      expect(ss.str(), equal_to("i42e"));
+    });
+
+    _.test("string", [](std::stringstream &ss) {
+      bencode::encode(ss, "foo");
+      expect(ss.str(), equal_to("3:foo"));
+    });
+
+    _.test("list", [](std::stringstream &ss) {
+      bencode::encode(ss, bencode::list{1, "foo", 2});
+      expect(ss.str(), equal_to("l" "i1e" "3:foo" "i2e" "e"));
+    });
+
+    _.test("dict", [](std::stringstream &ss) {
+      bencode::encode(ss, bencode::dict{
+        {"one", 1},
+        {"two", "foo"},
+        {"three", 2}
+      });
+      expect(ss.str(), equal_to(
+        "d" "3:one" "i1e" "5:three" "i2e" "3:two" "3:foo" "e"
+      ));
+    });
+
+    _.test("data", [](std::stringstream &ss) {
+      bencode::encode(ss, bencode::data{bencode::list{1, "foo", 2}});
+      expect(ss.str(), equal_to("l" "i1e" "3:foo" "i2e" "e"));
+    });
+  });
+
+  subsuite<std::vector<char>>(_, "to std::vector", [](auto &_) {
+    _.test("integer", [](std::vector<char> &v) {
+      bencode::encode(std::back_inserter(v), 42);
+      expect(v, array('i', '4', '2', 'e'));
+    });
+
+    _.test("string", [](std::vector<char> &v) {
+      bencode::encode(std::back_inserter(v), "foo");
+      expect(v, array('3', ':', 'f', 'o', 'o'));
+    });
+
+    _.test("list", [](std::vector<char> &v) {
+      bencode::encode(std::back_inserter(v), bencode::list{1, 2});
+      expect(v, array('l', 'i', '1', 'e', 'i', '2', 'e', 'e'));
+    });
+
+    _.test("dict", [](std::vector<char> &v) {
+      bencode::encode(std::back_inserter(v), bencode::dict{
+        {"one", 1},
+        {"two", 2},
+      });
+      expect(v, array(
+        'd', '3', ':', 'o', 'n', 'e', 'i', '1', 'e',
+        '3', ':', 't', 'w', 'o', 'i', '2', 'e', 'e'
+      ));
+    });
+  });
+
 });

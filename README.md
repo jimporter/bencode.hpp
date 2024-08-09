@@ -183,6 +183,10 @@ auto str = bencode::encode(42);
 
 // Encode and output to an std::ostream.
 bencode::encode(std::cout, 42);
+
+// Encode and output to an iterator.
+std::vector<char> vec;
+bencode::encode(std::back_inserter(vec), 42);
 ```
 
 You can also construct more-complex data structures:

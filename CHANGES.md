@@ -6,6 +6,8 @@
 - `bencode::data` (and `bencode::basic_data`, etc) now support `operator []` and
   `at` member functions to get list/dictionary elements
 - Decoding functions now accept a pointer plus length as input
+- Improve performance of `encode`; encoding is now up to 2x as fast, depending
+  on the data being encoded
 
 ### Breaking changes
 - Require C++20
