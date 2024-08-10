@@ -601,9 +601,8 @@ namespace bencode {
   }
 
   template<typename Data, typename Iter>
-  inline Data basic_decode(const Iter &begin, Iter end) {
-    Iter b(begin);
-    return detail::do_decode<Data>(b, end, true);
+  inline Data basic_decode(Iter begin, Iter end) {
+    return detail::do_decode<Data>(begin, end, true);
   }
 
   template<typename Data, typename String>
