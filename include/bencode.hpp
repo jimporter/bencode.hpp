@@ -334,7 +334,16 @@ namespace bencode {
       std::end(t);
     };
 
-    template<typename Integer>
+    template<typename T>
+    concept sequence = iterable<T> && !std::convertible_to<T, std::string_view>;
+
+    template<typename T>
+    concept mapping = sequence<T> && requires {
+      typename T::key_type;
+      typename T::mapped_type;
+    };
+
+    template<std::integral Integer>
     inline void check_overflow(Integer value, Integer digit) {
       using limits = std::numeric_limits<Integer>;
       // Wrap `max` in parentheses to work around <windows.h> #defining `max`.
@@ -343,7 +352,7 @@ namespace bencode {
         throw std::overflow_error("integer overflow");
     }
 
-    template<typename Integer>
+    template<std::integral Integer>
     inline void check_underflow(Integer value, Integer digit) {
       using limits = std::numeric_limits<Integer>;
       // As above, work around <windows.h> #defining `min`.
@@ -352,7 +361,7 @@ namespace bencode {
         throw std::underflow_error("integer underflow");
     }
 
-    template<typename Integer>
+    template<std::integral Integer>
     inline void
     check_over_underflow(Integer value, Integer digit, Integer sgn) {
       if(sgn == 1)
@@ -361,7 +370,7 @@ namespace bencode {
         check_underflow(value, digit);
     }
 
-    template<typename Integer, typename Iter>
+    template<std::integral Integer, std::input_iterator Iter>
     inline Integer
     decode_digits(Iter &begin, Iter end, [[maybe_unused]] Integer sgn = 1) {
       assert(sgn == 1 || (std::is_signed_v<Integer> &&
@@ -411,7 +420,7 @@ namespace bencode {
       return value;
     }
 
-    template<typename Integer, typename Iter>
+    template<std::integral Integer, std::input_iterator Iter>
     Integer decode_int(Iter &begin, Iter end) {
       assert(*begin == u8'i');
       ++begin;
@@ -433,58 +442,43 @@ namespace bencode {
       return value;
     }
 
-    template<typename String>
-    class str_reader {
-    public:
-      template<typename Iter, typename Size>
-      inline String operator ()(Iter &begin, Iter end, Size len) {
-        return call(
-          begin, end, len,
-          typename std::iterator_traits<Iter>::iterator_category()
-        );
+    template<typename String, std::forward_iterator Iter>
+    String decode_chars(Iter &begin, Iter end, std::size_t len) {
+      if(std::distance(begin, end) < static_cast<std::ptrdiff_t>(len)) {
+        begin = end;
+        throw end_of_input_error();
       }
-    private:
-      template<typename Iter, typename Size>
-      String call(Iter &begin, Iter end, Size len, std::forward_iterator_tag) {
-        if(std::distance(begin, end) < static_cast<std::ptrdiff_t>(len)) {
-          begin = end;
+
+      auto orig = begin;
+      std::advance(begin, len);
+      return String(orig, begin);
+    }
+
+    template<typename String, std::input_iterator Iter>
+    inline String decode_chars(Iter &begin, Iter end, std::size_t len) {
+      String value(len, 0);
+      for(std::size_t i = 0; i < len; i++) {
+        if(begin == end)
           throw end_of_input_error();
-        }
+        value[i] = *begin++;
+      }
+      return value;
+    }
 
-        auto orig = begin;
-        std::advance(begin, len);
-        return String(orig, begin);
+    template<typename String, std::contiguous_iterator Iter>
+    requires is_view<String>
+    String decode_chars(Iter &begin, Iter end, std::size_t len) {
+      if(std::distance(begin, end) < static_cast<std::ptrdiff_t>(len)) {
+        begin = end;
+        throw end_of_input_error();
       }
 
-      template<typename Iter, typename Size>
-      String call(Iter &begin, Iter end, Size len, std::input_iterator_tag) {
-        String value(len, 0);
-        for(Size i = 0; i < len; i++) {
-          if(begin == end)
-            throw end_of_input_error();
-          value[i] = *begin++;
-        }
-        return value;
-      }
-    };
+      std::string_view value(&*begin, len);
+      std::advance(begin, len);
+      return value;
+    }
 
-    template<>
-    class str_reader<std::string_view> {
-    public:
-      template<typename Iter, typename Size>
-      std::string_view operator ()(Iter &begin, Iter end, Size len) {
-        if(std::distance(begin, end) < static_cast<std::ptrdiff_t>(len)) {
-          begin = end;
-          throw end_of_input_error();
-        }
-
-        std::string_view value(&*begin, len);
-        std::advance(begin, len);
-        return value;
-      }
-    };
-
-    template<typename String, typename Iter>
+    template<typename String, std::input_iterator Iter>
     String decode_str(Iter &begin, Iter end) {
       assert(std::isdigit(*begin));
       std::size_t len = decode_digits<std::size_t>(begin, end);
@@ -494,10 +488,10 @@ namespace bencode {
         throw syntax_error("expected ':' token");
       ++begin;
 
-      return str_reader<String>{}(begin, end, len);
+      return decode_chars<String>(begin, end, len);
     }
 
-    template<typename Data, typename Iter>
+    template<typename Data, std::input_iterator Iter>
     Data do_decode(Iter &begin, Iter end, bool all) {
       using Traits = variant_traits_for<Data>;
       using Integer = typename Data::integer;
@@ -600,7 +594,7 @@ namespace bencode {
 
   }
 
-  template<typename Data, typename Iter>
+  template<typename Data, std::input_iterator Iter>
   inline Data basic_decode(Iter begin, Iter end) {
     return detail::do_decode<Data>(begin, end, true);
   }
@@ -626,7 +620,7 @@ namespace bencode {
     return detail::do_decode<Data>(s, e, true);
   }
 
-  template<typename Data, typename Iter>
+  template<typename Data, std::input_iterator Iter>
   inline Data basic_decode_some(Iter &begin, Iter end) {
     return detail::do_decode<Data>(begin, end, false);
   }
@@ -755,34 +749,22 @@ namespace bencode {
     std::copy(value.begin(), value.end(), iter);
   }
 
-  template<detail::output_iterator_ref Iter, typename T>
-  void encode(Iter &&iter, const std::vector<T> &value) {
+  template<detail::output_iterator_ref Iter, detail::sequence Seq>
+  void encode(Iter &&iter, const Seq &value) {
     detail::list_encoder e(iter);
     for(auto &&i : value)
       e.add(i);
   }
 
-  template<detail::output_iterator_ref Iter, typename T>
-  void encode(Iter &&iter, const std::map<string, T> &value) {
+  template<detail::output_iterator_ref Iter, detail::mapping Map>
+  void encode(Iter &&iter, const Map &value) {
     detail::dict_encoder e(iter);
     for(auto &&i : value)
       e.add(i.first, i.second);
-  }
-
-  template<detail::output_iterator_ref Iter, typename T>
-  void encode(Iter &&iter, const std::map<string_view, T> &value) {
-    detail::dict_encoder e(iter);
-    for(auto &&i : value)
-      e.add(i.first, i.second);
-  }
-
-  template<detail::output_iterator_ref Iter, typename K, typename V>
-  void encode(Iter &&iter, const map_proxy<K, V> &value) {
-    encode(iter, *value);
   }
 
   namespace detail {
-    template<std::input_or_output_iterator Iter>
+    template<detail::output_iterator_ref Iter>
     class encode_visitor {
     public:
       inline encode_visitor(Iter &iter) : iter(iter) {}
