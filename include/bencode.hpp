@@ -473,7 +473,7 @@ namespace bencode {
         throw end_of_input_error();
       }
 
-      std::string_view value(&*begin, len);
+      String value(&*begin, len);
       std::advance(begin, len);
       return value;
     }
