@@ -182,17 +182,17 @@ Encoding data is also straightforward:
 auto str = bencode::encode(42);
 
 // Encode and output to an std::ostream.
-bencode::encode(std::cout, 42);
+bencode::encode_to(std::cout, 42);
 
 // Encode and output to an iterator.
 std::vector<char> vec;
-bencode::encode(std::back_inserter(vec), 42);
+bencode::encode_to(std::back_inserter(vec), 42);
 ```
 
 You can also construct more-complex data structures:
 
 ```c++
-bencode::encode(std::cout, bencode::dict{
+bencode::encode_to(std::cout, bencode::dict{
   {"one", 1},
   {"two", bencode::list{1, "foo", 2}},
   {"three", "3"}

@@ -13,6 +13,7 @@
 - Require C++20
 - To decode only the next bencode object in a string or stream, you must now
   call `bencode::decode_some`
+- To encode into an iterator or stream, you must now call `bencode::encode_to`
 
 ### Bug fixes
 - `bencode::decode` and friends now throw an exception if there's any data

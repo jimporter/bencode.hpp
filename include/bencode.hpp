@@ -335,12 +335,16 @@ namespace bencode {
     };
 
     template<typename T>
-    concept sequence = iterable<T> && !std::convertible_to<T, std::string_view>;
+    concept stringish = iterable<T> && requires(T &t) {
+      std::size(t);
+      requires std::same_as<std::iter_value_t<decltype(std::begin(t))>, char>;
+    };
 
     template<typename T>
-    concept mapping = sequence<T> && requires {
+    concept mapping = iterable<T> && requires {
       typename T::key_type;
       typename T::mapped_type;
+      requires stringish<typename T::key_type>;
     };
 
     template<std::integral Integer>
@@ -736,28 +740,42 @@ namespace bencode {
   }
 
   template<detail::output_iterator_ref Iter>
-  inline void encode(Iter &&iter, integer value) {
+  inline void encode_to(Iter &&iter, integer value) {
     *iter++ = u8'i';
     detail::write_integer(iter, value);
     *iter++ = u8'e';
   }
 
-  template<detail::output_iterator_ref Iter>
-  inline void encode(Iter &&iter, const string_view &value) {
-    detail::write_integer(iter, value.size());
+  template<detail::output_iterator_ref Iter, detail::stringish Str>
+  requires(!std::is_array_v<Str>)
+  inline void encode_to(Iter &&iter, const Str &value) {
+    detail::write_integer(iter, std::size(value));
     *iter++ = u8':';
-    std::copy(value.begin(), value.end(), iter);
+    std::copy(std::begin(value), std::end(value), iter);
   }
 
-  template<detail::output_iterator_ref Iter, detail::sequence Seq>
-  void encode(Iter &&iter, const Seq &value) {
+  template<detail::output_iterator_ref Iter>
+  inline void encode_to(Iter &&iter, const char *value, std::size_t length) {
+    detail::write_integer(iter, length);
+    *iter++ = u8':';
+    std::copy(value, value + length, iter);
+  }
+
+  template<detail::output_iterator_ref Iter, std::size_t N>
+  inline void encode_to(Iter &&iter, const char (&value)[N]) {
+    // Don't write the null terminator.
+    encode_to(std::forward<Iter>(iter), value, N - 1);
+  }
+
+  template<detail::output_iterator_ref Iter, detail::iterable Seq>
+  void encode_to(Iter &&iter, const Seq &value) {
     detail::list_encoder e(iter);
     for(auto &&i : value)
       e.add(i);
   }
 
   template<detail::output_iterator_ref Iter, detail::mapping Map>
-  void encode(Iter &&iter, const Map &value) {
+  void encode_to(Iter &&iter, const Map &value) {
     detail::dict_encoder e(iter);
     for(auto &&i : value)
       e.add(i.first, i.second);
@@ -771,7 +789,7 @@ namespace bencode {
 
       template<typename T>
       void operator ()(T &&operand) const {
-        encode(iter, std::forward<T>(operand));
+        encode_to(iter, std::forward<T>(operand));
       }
     private:
       Iter &iter;
@@ -781,7 +799,7 @@ namespace bencode {
   template<detail::output_iterator_ref Iter,
            template<typename ...> typename Variant, typename I, typename S,
            template<typename ...> typename L, template<typename ...> typename D>
-  void encode(Iter &&iter, const basic_data<Variant, I, S, L, D> &value) {
+  void encode_to(Iter &&iter, const basic_data<Variant, I, S, L, D> &value) {
     variant_traits<Variant>::visit(detail::encode_visitor(iter), value);
   }
 
@@ -789,7 +807,7 @@ namespace bencode {
     template<detail::output_iterator_ref Iter>
     template<typename T>
     inline list_encoder<Iter> & list_encoder<Iter>::add(T &&value) {
-      encode(iter, std::forward<T>(value));
+      encode_to(iter, std::forward<T>(value));
       return *this;
     }
 
@@ -797,22 +815,22 @@ namespace bencode {
     template<typename T>
     inline dict_encoder<Iter> &
     dict_encoder<Iter>::add(const string_view &key, T &&value) {
-      encode(iter, key);
-      encode(iter, std::forward<T>(value));
+      encode_to(iter, key);
+      encode_to(iter, std::forward<T>(value));
       return *this;
     }
   }
 
-  template<typename T>
-  std::string encode(T &&t) {
+  template<typename ...T>
+  std::string encode(T &&...t) {
     std::stringstream ss;
-    encode(std::ostreambuf_iterator(ss), std::forward<T>(t));
+    encode_to(std::ostreambuf_iterator(ss), std::forward<T>(t)...);
     return ss.str();
   }
 
-  template<typename T>
-  void encode(std::ostream &os, T &&t) {
-    encode(std::ostreambuf_iterator(os), std::forward<T>(t));
+  template<typename ...T>
+  void encode_to(std::ostream &os, T &&...t) {
+    encode_to(std::ostreambuf_iterator(os), std::forward<T>(t)...);
   }
 
 }
