@@ -69,7 +69,7 @@ namespace bencode {
       return *this;
     }
 
-    void swap(const map_proxy &rhs) { proxy_->swap(*rhs.proxy); }
+    void swap(const map_proxy &rhs) { proxy_->swap(*rhs.proxy_); }
 
     operator map_type &() { return *proxy_; };
     operator const map_type &() const { return *proxy_; };
