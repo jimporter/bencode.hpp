@@ -1,5 +1,12 @@
 # Changes
 
+## v1.0.2 (2025-03-16)
+
+### Bug fixes
+- Fix `bencode::map_proxy::swap` implementation
+
+--
+
 ## v1.0.1 (2023-07-01)
 
 ### Bug fixes
