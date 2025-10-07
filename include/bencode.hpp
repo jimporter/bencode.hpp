@@ -12,6 +12,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <ranges>
 #include <span>
 #include <sstream>
 #include <stack>
@@ -324,11 +325,6 @@ namespace bencode {
 
   namespace detail {
 
-    template<typename T> constexpr bool is_view = false;
-    template<typename T> constexpr bool is_view<std::basic_string_view<T>>
-      = true;
-    template<typename T> constexpr bool is_view<std::span<T>> = true;
-
     template<typename T>
     concept iterable = requires(T &t) {
       std::begin(t);
@@ -470,8 +466,7 @@ namespace bencode {
       return value;
     }
 
-    template<typename String, std::contiguous_iterator Iter>
-    requires is_view<String>
+    template<std::ranges::view String, std::contiguous_iterator Iter>
     String decode_chars(Iter &begin, Iter end, std::size_t len) {
       if(std::distance(begin, end) < static_cast<std::ptrdiff_t>(len)) {
         begin = end;
@@ -586,7 +581,7 @@ namespace bencode {
 
     template<typename Data>
     Data do_decode(std::istream &s, eof_behavior e, bool all) {
-      static_assert(!detail::is_view<typename Data::string>,
+      static_assert(!std::ranges::view<typename Data::string>,
                     "reading from stream not supported for data views");
 
       std::istreambuf_iterator<char> begin(s), end;

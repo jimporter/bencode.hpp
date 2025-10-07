@@ -95,7 +95,7 @@ auto decode_tests(Builder &_, Callable &&do_decode) {
     auto value = do_decode(data);
     auto str = get<typename OutType::string>(value);
     expect(str, equal_to("spam"));
-    if constexpr(bencode::detail::is_view<typename OutType::string>) {
+    if constexpr(std::ranges::view<typename OutType::string>) {
       expect(&*str.begin(), within_data_memory);
       expect(&*str.end(), within_data_memory);
     }
@@ -119,7 +119,7 @@ auto decode_tests(Builder &_, Callable &&do_decode) {
 
     auto str = dict.find("spam")->first;
     expect(str, equal_to("spam"));
-    if constexpr(bencode::detail::is_view<typename OutType::string>) {
+    if constexpr(std::ranges::view<typename OutType::string>) {
       expect(&*str.begin(), within_data_memory);
       expect(&*str.end(), within_data_memory);
     }
