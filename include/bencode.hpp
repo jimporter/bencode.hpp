@@ -132,23 +132,15 @@ namespace bencode {
     auto key_comp() const { return proxy_->key_comp(); }
     auto value_comp() const { return proxy_->value_comp(); }
 
+    friend bool operator ==(const map_proxy &lhs, const map_proxy &rhs) {
+      return *lhs == *rhs;
+    }
+    friend auto operator <=>(const map_proxy &lhs, const map_proxy &rhs) {
+      return *lhs <=> *rhs;
+    }
   private:
     std::unique_ptr<map_type> proxy_;
   };
-
-#define BENCODE_MAP_PROXY_RELOP(op)                                           \
-  template<typename Key, typename Value>                                      \
-  bool operator op(const map_proxy<Key, Value> &lhs,                          \
-                   const map_proxy<Key, Value> &rhs) {                        \
-    return *lhs == *rhs;                                                      \
-  }
-
-  BENCODE_MAP_PROXY_RELOP(==)
-  BENCODE_MAP_PROXY_RELOP(!=)
-  BENCODE_MAP_PROXY_RELOP(>=)
-  BENCODE_MAP_PROXY_RELOP(<=)
-  BENCODE_MAP_PROXY_RELOP(>)
-  BENCODE_MAP_PROXY_RELOP(<)
 
 #define BENCODE_DATA_GETTER(func, impl, arg_type, container_type)             \
   basic_data & func(const arg_type &key) & {                                  \
