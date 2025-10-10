@@ -65,12 +65,12 @@ namespace bencode {
       return *this;
     }
 
-    map_proxy operator =(const map_proxy &&rhs) {
+    map_proxy operator =(map_proxy &&rhs) {
       *proxy_ = std::move(*rhs.proxy_);
       return *this;
     }
 
-    void swap(const map_proxy &rhs) { proxy_->swap(*rhs.proxy_); }
+    void swap(map_proxy &rhs) { proxy_->swap(*rhs.proxy_); }
 
     operator map_type &() { return *proxy_; };
     operator const map_type &() const { return *proxy_; };
