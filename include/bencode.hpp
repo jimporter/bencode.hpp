@@ -584,7 +584,7 @@ namespace bencode {
       return result;
     }
 
-  }
+  } // namespace detail
 
   template<typename Data, std::input_iterator Iter>
   inline Data basic_decode(Iter begin, Iter end) {
@@ -725,7 +725,7 @@ namespace bencode {
         throw std::system_error(std::make_error_code(r.ec));
       std::copy(buf, r.ptr, iter);
     }
-  }
+  } // namespace detail
 
   template<detail::output_iterator_ref Iter>
   inline void encode_to(Iter &&iter, integer value) {
@@ -782,7 +782,7 @@ namespace bencode {
     private:
       Iter &iter;
     };
-  }
+  } // namespace detail
 
   template<detail::output_iterator_ref Iter,
            template<typename ...> typename Variant, typename I, typename S,
@@ -807,7 +807,7 @@ namespace bencode {
       encode_to(iter, std::forward<T>(value));
       return *this;
     }
-  }
+  } // namespace detail
 
   template<typename ...T>
   std::string encode(T &&...t) {
@@ -821,6 +821,6 @@ namespace bencode {
     encode_to(std::ostreambuf_iterator(os), std::forward<T>(t)...);
   }
 
-}
+} // namespace bencode
 
 #endif
