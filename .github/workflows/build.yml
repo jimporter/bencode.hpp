@@ -53,7 +53,7 @@ jobs:
              boost-version: '1.80.0'}
 
           # macOS builds
-          - {os: macos-latest, compiler: clang}
+          - {os: macos-15, compiler: clang}
 
           # C++23 builds
           - {os: ubuntu-24.04, compiler: gcc, version: '14',
