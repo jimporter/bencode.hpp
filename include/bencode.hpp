@@ -29,6 +29,30 @@
 
 namespace bencode {
 
+  // Some useful concepts/traits for managing types.
+  namespace detail {
+
+    template<typename T>
+    concept iterable = requires(T &t) {
+      std::begin(t);
+      std::end(t);
+    };
+
+    template<typename T>
+    concept stringish = iterable<T> && requires(T &t) {
+      std::size(t);
+      requires std::same_as<std::iter_value_t<decltype(std::begin(t))>, char>;
+    };
+
+    template<typename T>
+    concept mapping = iterable<T> && requires {
+      typename T::key_type;
+      typename T::mapped_type;
+      requires stringish<typename T::key_type>;
+    };
+
+  } // namespace detail
+
   template<template<typename ...> typename T>
   struct variant_traits;
 
@@ -236,11 +260,6 @@ namespace bencode {
                                std::vector, map_proxy>;
 
 #ifdef BENCODE_HAS_BOOST
-  using boost_data = basic_data<boost::variant, long long, std::string,
-                                std::vector, map_proxy>;
-  using boost_data_view = basic_data<boost::variant, long long,
-                                     std::string_view, std::vector, map_proxy>;
-
   template<>
   struct variant_traits<boost::variant> {
     template<typename Visitor, typename ...Variants>
@@ -265,6 +284,11 @@ namespace bencode {
       return variant.which();
     }
   };
+
+  using boost_data = basic_data<boost::variant, long long, std::string,
+                                std::vector, map_proxy>;
+  using boost_data_view = basic_data<boost::variant, long long,
+                                     std::string_view, std::vector, map_proxy>;
 #endif
 
   using integer = data::integer;
@@ -316,25 +340,6 @@ namespace bencode {
   };
 
   namespace detail {
-
-    template<typename T>
-    concept iterable = requires(T &t) {
-      std::begin(t);
-      std::end(t);
-    };
-
-    template<typename T>
-    concept stringish = iterable<T> && requires(T &t) {
-      std::size(t);
-      requires std::same_as<std::iter_value_t<decltype(std::begin(t))>, char>;
-    };
-
-    template<typename T>
-    concept mapping = iterable<T> && requires {
-      typename T::key_type;
-      typename T::mapped_type;
-      requires stringish<typename T::key_type>;
-    };
 
     template<std::integral Integer>
     inline void check_overflow(Integer value, Integer digit) {
@@ -675,12 +680,7 @@ namespace bencode {
 #endif
 
   namespace detail {
-    template<typename T>
-    concept output_iterator_ref = std::input_or_output_iterator<
-      std::remove_reference_t<T>
-    >;
-
-    template<output_iterator_ref Iter>
+    template<std::input_or_output_iterator Iter>
     class list_encoder {
     public:
       inline list_encoder(Iter &iter) : iter(iter) {
@@ -697,7 +697,7 @@ namespace bencode {
       Iter &iter;
     };
 
-    template<output_iterator_ref Iter>
+    template<std::input_or_output_iterator Iter>
     class dict_encoder {
     public:
       inline dict_encoder(Iter &iter) : iter(iter) {
@@ -714,7 +714,7 @@ namespace bencode {
       Iter &iter;
     };
 
-    template<detail::output_iterator_ref Iter, typename T>
+    template<std::input_or_output_iterator Iter, typename T>
     void write_integer(Iter &iter, T value) {
       // digits10 tells how many base-10 digits can fully fit in T, so we add 1
       // for the digit that can only partially fit, plus one more for the
@@ -727,50 +727,53 @@ namespace bencode {
     }
   } // namespace detail
 
-  template<detail::output_iterator_ref Iter>
-  inline void encode_to(Iter &&iter, integer value) {
+  template<std::input_or_output_iterator Iter>
+  inline Iter encode_to(Iter iter, integer value) {
     *iter++ = u8'i';
     detail::write_integer(iter, value);
     *iter++ = u8'e';
+    return iter;
   }
 
-  template<detail::output_iterator_ref Iter, detail::stringish Str>
+  template<std::input_or_output_iterator Iter, detail::stringish Str>
   requires(!std::is_array_v<Str>)
-  inline void encode_to(Iter &&iter, const Str &value) {
+  inline Iter encode_to(Iter iter, const Str &value) {
     detail::write_integer(iter, std::size(value));
     *iter++ = u8':';
-    std::copy(std::begin(value), std::end(value), iter);
+    return std::copy(std::begin(value), std::end(value), iter);
   }
 
-  template<detail::output_iterator_ref Iter>
-  inline void encode_to(Iter &&iter, const char *value, std::size_t length) {
+  template<std::input_or_output_iterator Iter>
+  inline Iter encode_to(Iter iter, const char *value, std::size_t length) {
     detail::write_integer(iter, length);
     *iter++ = u8':';
-    std::copy(value, value + length, iter);
+    return std::copy(value, value + length, iter);
   }
 
-  template<detail::output_iterator_ref Iter, std::size_t N>
-  inline void encode_to(Iter &&iter, const char (&value)[N]) {
+  template<std::input_or_output_iterator Iter, std::size_t N>
+  inline Iter encode_to(Iter iter, const char (&value)[N]) {
     // Don't write the null terminator.
-    encode_to(std::forward<Iter>(iter), value, N - 1);
+    return encode_to(std::forward<Iter>(iter), value, N - 1);
   }
 
-  template<detail::output_iterator_ref Iter, detail::iterable Seq>
-  void encode_to(Iter &&iter, const Seq &value) {
+  template<std::input_or_output_iterator Iter, detail::iterable Seq>
+  Iter encode_to(Iter iter, const Seq &value) {
     detail::list_encoder e(iter);
     for(auto &&i : value)
       e.add(i);
+    return iter;
   }
 
-  template<detail::output_iterator_ref Iter, detail::mapping Map>
-  void encode_to(Iter &&iter, const Map &value) {
+  template<std::input_or_output_iterator Iter, detail::mapping Map>
+  Iter encode_to(Iter iter, const Map &value) {
     detail::dict_encoder e(iter);
     for(auto &&i : value)
       e.add(i.first, i.second);
+    return iter;
   }
 
   namespace detail {
-    template<detail::output_iterator_ref Iter>
+    template<std::input_or_output_iterator Iter>
     class encode_visitor {
     public:
       inline encode_visitor(Iter &iter) : iter(iter) {}
@@ -784,22 +787,23 @@ namespace bencode {
     };
   } // namespace detail
 
-  template<detail::output_iterator_ref Iter,
+  template<std::input_or_output_iterator Iter,
            template<typename ...> typename Variant, typename I, typename S,
            template<typename ...> typename L, template<typename ...> typename D>
-  void encode_to(Iter &&iter, const basic_data<Variant, I, S, L, D> &value) {
+  Iter encode_to(Iter iter, const basic_data<Variant, I, S, L, D> &value) {
     variant_traits<Variant>::visit(detail::encode_visitor(iter), value);
+    return iter;
   }
 
   namespace detail {
-    template<detail::output_iterator_ref Iter>
+    template<std::input_or_output_iterator Iter>
     template<typename T>
     inline list_encoder<Iter> & list_encoder<Iter>::add(T &&value) {
       encode_to(iter, std::forward<T>(value));
       return *this;
     }
 
-    template<detail::output_iterator_ref Iter>
+    template<std::input_or_output_iterator Iter>
     template<typename T>
     inline dict_encoder<Iter> &
     dict_encoder<Iter>::add(const string_view &key, T &&value) {
@@ -817,8 +821,9 @@ namespace bencode {
   }
 
   template<typename ...T>
-  void encode_to(std::ostream &os, T &&...t) {
+  std::ostream& encode_to(std::ostream &os, T &&...t) {
     encode_to(std::ostreambuf_iterator(os), std::forward<T>(t)...);
+    return os;
   }
 
 } // namespace bencode
