@@ -715,7 +715,7 @@ namespace bencode {
     };
 
     template<std::input_or_output_iterator Iter, typename T>
-    void write_integer(Iter &iter, T value) {
+    Iter write_integer(Iter iter, T value) {
       // digits10 tells how many base-10 digits can fully fit in T, so we add 1
       // for the digit that can only partially fit, plus one more for the
       // negative sign.
@@ -723,14 +723,14 @@ namespace bencode {
       auto r = std::to_chars(buf, buf + sizeof(buf), value);
       if(r.ec != std::errc())
         throw std::system_error(std::make_error_code(r.ec));
-      std::copy(buf, r.ptr, iter);
+      return std::copy(buf, r.ptr, iter);
     }
   } // namespace detail
 
   template<std::input_or_output_iterator Iter>
   inline Iter encode_to(Iter iter, integer value) {
     *iter++ = u8'i';
-    detail::write_integer(iter, value);
+    iter = detail::write_integer(iter, value);
     *iter++ = u8'e';
     return iter;
   }
