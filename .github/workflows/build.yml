@@ -72,12 +72,8 @@ jobs:
           git+https://github.com/jimporter/mopack.git
       - name: Install Linux dependencies
         if: startsWith(matrix.os, 'ubuntu-')
-        run: >
-          sudo apt-get install
-          ninja-build
-          libboost-dev
-          libboost-iostreams-dev
-          libboost-program-options-dev
+        run: |
+          sudo apt-get install ninja-build
       - name: Install Windows dependencies
         if: startsWith(matrix.os, 'windows-')
         run: |
