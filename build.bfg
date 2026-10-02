@@ -14,7 +14,8 @@ test_files = find_paths('test/**/*.cpp')
 try:
     boost = package('boost')
     libmettle = package('mettle')
-    mettle = test_driver(['mettle', '--output=verbose'])
+    mettle = test_driver([system_executable('mettle', package=libmettle),
+                          '--output=verbose'])
 
     for src in test_files:
         test(executable(
